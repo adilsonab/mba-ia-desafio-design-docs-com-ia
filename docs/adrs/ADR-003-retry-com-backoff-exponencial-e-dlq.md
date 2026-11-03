@@ -30,6 +30,8 @@ Cada entrega que falha (erro HTTP, timeout ou indisponibilidade) é reprogramada
 
 **Interpretação registrada:** as 5 tentativas são **reenvios após a falha do envio inicial**. Assim, os 5 intervalos são todos usados, há até 6 chamadas HTTP no pior caso, e a janela entre a primeira falha e a última tentativa é de cerca de 14,6 h. Isso coincide com "quase 15 horas" ([09:17] Diego) e com "uma janela de até 12 ou 24 horas" ([09:15] Diego). Contar 5 envios no total deixaria o intervalo de 12 h sem uso e reduziria a janela a ~2,6 h, contradizendo essas falas.
 
+**Evidência contrária, a confirmar no design review:** no resumo de fechamento, a Larissa diz "1m/5m/30m/2h/12h, **total 5 tentativas**, depois DLQ" ([09:48] Larissa), e todos confirmam ([09:49] Diego, [09:49] Bruno). Lida ao pé da letra, essa fala favorece os 5 envios no total. A leitura adotada aqui se mantém porque é a única em que os cinco intervalos e as "quase 15 horas" fecham ao mesmo tempo. Mas a reunião se contradiz nesse ponto, e a contagem precisa ser confirmada na sessão de revisão de design ([09:50] Larissa).
+
 Esgotadas as tentativas, a entrega é considerada **falha permanente** e movida para uma **tabela de dead letter separada**, com o payload, o motivo da falha e o momento ([09:15] Diego, [09:18] Diego).
 
 O reprocessamento é **manual**, por um endpoint administrativo que recoloca o evento na outbox como pendente ([09:18] Diego). Ele exige **papel ADMIN** e registra em log **quem executou o replay**, para auditoria ([09:36] Sofia, [09:36] Larissa).
@@ -77,4 +79,4 @@ Troca-se **persistência ilimitada** (retry infinito) por **término previsível
 - `src/middlewares/auth.middleware.ts:49-61`: `requireRole`, reutilizado para restringir o replay a ADMIN.
 - `prisma/schema.prisma:11-14`: papéis `ADMIN` e `OPERATOR`.
 - `src/shared/logger/index.ts`: logger usado para o registro de auditoria do replay.
-- Transcrição: [09:14] Larissa, [09:15] Diego, [09:16] Bruno, [09:16] Diego, [09:17] Diego, [09:17] Marcos, [09:17] Larissa, [09:18] Diego, [09:19] Larissa, [09:35] Diego, [09:36] Sofia, [09:36] Larissa, [09:42] Diego, [09:48] Larissa.
+- Transcrição: [09:14] Larissa, [09:15] Diego, [09:16] Bruno, [09:16] Diego, [09:17] Diego, [09:17] Marcos, [09:17] Larissa, [09:18] Diego, [09:19] Larissa, [09:35] Diego, [09:36] Sofia, [09:36] Larissa, [09:42] Diego, [09:48] Larissa, [09:49] Diego, [09:49] Bruno, [09:50] Larissa.

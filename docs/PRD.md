@@ -4,13 +4,13 @@
 | --- | --- |
 | **Autor** | Adilson Barbosa |
 | **Product Manager** | Marcos |
-| **Status** | Aprovado para implementação (escopo fechado na reunião técnica; resumo final em [09:48] Larissa) |
+| **Status** | Escopo aprovado na reunião técnica (resumo final em [09:48] Larissa); desenho técnico em revisão antes do início da implementação ([09:50] Larissa) |
 | **Data** | 02-11-2026 |
 | **Documentos relacionados** | [RFC](RFC.md) · [FDD](FDD.md) · [ADRs](adrs/README.md) · [Tracker](TRACKER.md) |
 
 ## 1. Resumo e contexto
 
-Os clientes B2B do OMS passarão a receber **notificações automáticas (webhooks) sempre que o status de um pedido deles mudar**, sem precisar consultar a API periodicamente. Cada cliente cadastra um ou mais endereços HTTPS e escolhe quais status quer receber (por exemplo, só "enviado" e "entregue"). A plataforma entrega cada notificação em segundos, assinada digitalmente, com novas tentativas automáticas se o cliente estiver fora do ar.
+Os clientes B2B do OMS passarão a receber **notificações automáticas (webhooks) sempre que o status de um pedido deles mudar**, sem precisar consultar a API periodicamente. Cada cliente cadastra um ou mais endereços HTTPS e escolhe quais status quer receber (por exemplo, só "enviado" e "entregue"). A plataforma entrega cada notificação normalmente em segundos, assinada digitalmente, com novas tentativas automáticas se o cliente estiver fora do ar.
 
 A feature nasce de um pedido formal de três clientes B2B: Atlas Comercial, MaxDistribuição e Nova Cargo ([09:00] Marcos). O OMS ainda não tem nenhum mecanismo de notificação externa.
 
@@ -27,13 +27,13 @@ A feature nasce de um pedido formal de três clientes B2B: Atlas Comercial, MaxD
 | **Integrador do cliente B2B** | Desenvolvedor dos sistemas da Atlas, MaxDistribuição, Nova Cargo e futuros clientes | Receber eventos confiáveis e verificáveis; configurar e diagnosticar a própria integração |
 | **Usuário que representa o cliente** | Usuário do OMS que acessa a API em nome do cliente ([09:32] Marcos) | Cadastrar, editar e remover webhooks e consultar o histórico de entregas |
 | **Administrador da plataforma** | Usuário com papel ADMIN | Reprocessar notificações que falharam definitivamente, com rastro de auditoria ([09:36] Sofia) |
-| **PM / Developer Relations** | Marcos | Documentar a integração no portal do desenvolvedor ([09:26] Marcos, [09:40] Marcos) |
+| **PM** | Marcos | Documentar a integração no portal do desenvolvedor ([09:26] Marcos, [09:40] Marcos) |
 
-**Cenários:**
+**Cenários** (ilustrativos: as situações vêm das falas citadas; os clientes não foram nomeados nelas):
 
-1. **Acompanhar entregas.** A Atlas cadastra um webhook para "SHIPPED" e "DELIVERED". Quando um pedido é despachado, o sistema dela recebe a notificação em segundos e atualiza o rastreio, sem consultar a API ([09:33] Marcos).
-2. **Cliente em manutenção.** O endpoint da MaxDistribuição fica 2 horas fora do ar numa manutenção planejada. As notificações são reenviadas automaticamente e chegam quando o sistema volta ([09:16] Diego).
-3. **Cliente fora do ar por muito tempo.** O endpoint da Nova Cargo fica indisponível por mais de ~15 h. As notificações vão para uma fila de falhas. Quando o problema é resolvido, um administrador as reenvia ([09:17] Marcos, [09:18] Diego).
+1. **Acompanhar entregas.** Um cliente cadastra um webhook só para "SHIPPED" e "DELIVERED". Quando um pedido dele é despachado, o sistema dele recebe a notificação, sem consultar a API ([09:33] Marcos).
+2. **Cliente em manutenção.** O endpoint de um cliente fica 2 horas fora do ar numa manutenção planejada, como já aconteceu com um cliente da plataforma. As notificações são reenviadas automaticamente e chegam quando o sistema volta ([09:16] Diego).
+3. **Cliente fora do ar por muito tempo.** O endpoint de um cliente fica indisponível por mais de ~15 h. As notificações vão para uma fila de falhas. Quando o problema é resolvido, um administrador as reenvia ([09:17] Marcos, [09:18] Diego).
 4. **Notificação repetida.** Um reenvio faz o cliente receber o mesmo evento duas vezes. Ele reconhece a repetição pelo identificador único do evento e a ignora ([09:25] Diego).
 5. **Segredo vazado.** O cliente vaza o segredo de assinatura num log. Ele gera um novo segredo pela API, e o antigo continua válido por 24 h para dar tempo de migrar ([09:21] Sofia, [09:22] Diego).
 6. **Diagnóstico.** O integrador vê, nas últimas 100 entregas, quais falharam, o que foi enviado, o que o sistema dele respondeu e quanto tempo levou ([09:34] Marcos).
@@ -42,7 +42,7 @@ A feature nasce de um pedido formal de três clientes B2B: Atlas Comercial, MaxD
 
 | # | Objetivo | Métrica | Meta | Origem |
 | --- | --- | --- | --- | --- |
-| O-1 | Notificar em "tempo real" | Tempo entre a mudança de status e a primeira tentativa de entrega | **p95 < 10 s** (desenho prevê ~2 s) | [09:02] Marcos, [09:10] Larissa |
+| O-1 | Notificar em "tempo real" | Tempo entre a mudança de status e a primeira tentativa de entrega | **p95 < 10 s** (ver o risco "cliente lento" na seção 10) | [09:02] Marcos, [09:10] Larissa |
 | O-2 | Não perder nenhuma notificação | Mudanças de status que deveriam notificar e não geraram evento | **0** | [09:06] Diego, [09:40] Bruno |
 | O-3 | Tolerar indisponibilidade do cliente | Janela de reenvio automático antes da fila de falhas | **~15 h** (5 reenvios) | [09:17] Diego, [09:17] Marcos |
 | O-4 | Atender os clientes solicitantes no prazo | Clientes solicitantes com webhook em produção | **3 de 3** (Atlas, MaxDistribuição, Nova Cargo) até **fim de novembro** | [09:00] Marcos, [09:45] Marcos |
@@ -72,7 +72,7 @@ O-4 combina o pedido dos três clientes com o prazo da Atlas; a meta "3 de 3" é
 | **Garantia de ordem global** entre eventos | **Não oferecida**; os clientes não pediram | [09:13] Larissa, [09:14] Marcos |
 | **Entrega exatamente uma vez** (exactly-once) | **Descartado**; o cliente deduplica | [09:25] Diego |
 | **Restrição de papel** no cadastro de webhooks | **Adiado**: "mais pra frente a gente pode endurecer" | [09:37] Sofia |
-| **Arquivamento** do histórico de eventos (~30 dias) | **Fora desta feature** | [09:08] Diego |
+| **Arquivamento** das notificações já entregues (~30 dias) | **Fora desta feature**. Não afeta o histórico de entregas consultável pelo cliente | [09:08] Diego |
 
 ## 6. Requisitos funcionais
 
@@ -88,11 +88,11 @@ O-4 combina o pedido dos três clientes com o prazo da Atlas; a meta "3 de 3" é
 | PRD-FR-08 | Cada notificação deve trazer um **identificador único do evento** para o cliente reconhecer repetições | [09:25] Diego, [09:26] Larissa |
 | PRD-FR-09 | Cada notificação deve identificar **qual webhook cadastrado** a originou | [09:44] Sofia |
 | PRD-FR-10 | A notificação deve conter os dados essenciais do pedido e da mudança (pedido, número, status anterior e novo, cliente, valor total, momento), **sem os itens** do pedido | [09:43] Diego |
-| PRD-FR-11 | Notificações que falharem devem ser **reenviadas automaticamente** até 5 vezes, com intervalos crescentes | [09:15] Diego, [09:17] Larissa |
+| PRD-FR-11 | Notificações que falharem devem ser **reenviadas automaticamente** até 5 vezes, com intervalos crescentes. *A contagem (5 reenvios além do envio inicial, ou 5 envios no total) tem falas conflitantes na reunião e será confirmada no design review; ver [RFC](RFC.md), questão 6* | [09:15] Diego, [09:17] Larissa, [09:48] Larissa |
 | PRD-FR-12 | Esgotados os reenvios, a notificação deve ir para uma **fila de falhas** com o motivo | [09:15] Diego, [09:18] Diego |
 | PRD-FR-13 | Um **administrador** deve poder reenviar manualmente um item da fila de falhas | [09:18] Diego, [09:36] Larissa |
 | PRD-FR-14 | O sistema deve registrar **quem** executou cada reenvio manual | [09:36] Sofia |
-| PRD-FR-15 | O usuário deve poder consultar as **últimas 100 entregas** de um webhook, com sucesso ou falha, conteúdo enviado, resposta e tempo de resposta | [09:34] Marcos |
+| PRD-FR-15 | O usuário deve poder consultar as **últimas 100 entregas** de um webhook, com sucesso ou falha, conteúdo enviado, resposta e tempo de resposta. *Se "100" conta tentativas ou eventos é uma interpretação a confirmar; ver [FDD](FDD.md), histórico de entregas* | [09:34] Marcos |
 
 ## 7. Requisitos não funcionais
 
@@ -106,7 +106,7 @@ O-4 combina o pedido dos três clientes com o prazo da Atlas; a meta "3 de 3" é
 | PRD-NFR-06 | Notificações acima de **64 KB** não são enviadas (erro, sem truncar) | [09:23] Sofia, [09:24] Larissa |
 | PRD-NFR-07 | O cliente tem **10 s** para responder a cada notificação | [09:42] Diego |
 | PRD-NFR-08 | Segredo **exclusivo por webhook**; o vazamento de um não afeta os outros | [09:21] Sofia |
-| PRD-NFR-09 | Ordem garantida apenas **por pedido** | [09:12] Diego, [09:13] Larissa |
+| PRD-NFR-09 | Ordem garantida apenas **por pedido**, e só enquanto não houver reenvio: uma notificação em reenvio pode ser ultrapassada pela seguinte do mesmo pedido (em discussão no design review; [RFC](RFC.md), questão 9) | [09:12] Diego, [09:13] Larissa |
 | PRD-NFR-10 | Reprocessamento da fila de falhas restrito ao papel **ADMIN** | [09:36] Sofia |
 | PRD-NFR-11 | Sem infraestrutura nova; a solução usa o banco e a stack atuais | [09:07] Diego, [09:30] Larissa |
 | PRD-NFR-12 | **Revisão de segurança** de pelo menos 2 dias úteis antes do lançamento | [09:46] Sofia |
@@ -136,8 +136,11 @@ O-4 combina o pedido dos três clientes com o prazo da Atlas; a meta "3 de 3" é
 
 ## 10. Riscos e mitigação
 
-| Risco | Probabilidade | Impacto | Mitigação |
+Probabilidade e impacto são estimativas do autor; a reunião não classificou os riscos.
+
+| Risco | Probabilidade (estimativa do autor) | Impacto (estimativa do autor) | Mitigação |
 | --- | --- | --- | --- |
+| **Um cliente lento atrasa as notificações dos outros**: as entregas saem uma de cada vez, e cada cliente tem até 10 s para responder ([09:42] Diego) | Média | Alto | Decisão no design review: enviar em paralelo para pedidos diferentes, ou aceitar e monitorar o tempo de espera da fila. Detalhes no [FDD](FDD.md) |
 | **Perder a Atlas Comercial** por atraso | Média | Alto | Escopo enxuto (sem e-mail, dashboard e rate limit); 3 sprints com a revisão de segurança já reservada; prazo confirmado com os clientes ([09:46] Larissa, [09:47] Marcos) |
 | **Cliente processar a mesma notificação duas vezes** por não deduplicar | Média | Médio | Destaque no portal do desenvolvedor ([09:26] Marcos); ID do evento estável em todas as repetições |
 | **Vazamento do segredo** de um cliente | Média | Alto | Segredo exclusivo por webhook e troca pela API com 24 h de convivência ([09:21] Sofia); já houve caso real ([09:22] Diego) |

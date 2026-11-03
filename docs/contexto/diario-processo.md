@@ -122,3 +122,16 @@ Registro cronológico de prompts, resultados e correções. Fonte para a seção
   - Risco de ordem ligado à questão 9 do RFC.
 - **Lição:** no ciclo 2, o erro era a fala não sustentar a frase. Aqui foi outro tipo: o texto estava todo "certo" localmente, mas o **comportamento resultante** contradizia o objetivo. Só simulando o worker com um cliente lento o problema apareceu.
 - Tracker: +8 linhas (FDD-INT-19/20, FDD-OBS-06, FDD-RISK-10/11, FDD-FLUXO-20, FDD-ERRO-13, RFC-RISK-08) e 2 corrigidas (FDD-INT-13, FDD-INT-18). Revalidação: **292 linhas, 0 erros (84% TRANSCRICAO, 48 CODIGO)**; critérios de aceite **76/76 OK**.
+
+## 2026-11-03 — Etapa 10, ciclo 4: revisão crítica do PRD e do Tracker
+
+- **Método:** mesmo dos ciclos anteriores. A pré-revisão comparou o PRD com os documentos já corrigidos e com a transcrição. No Tracker, mediu a cobertura (critério "≥ 80% dos itens") e conferiu uma amostra aleatória de 13 linhas contra a fala citada. Foram 12 achados. Aceitei todos.
+- **Achado mais importante: viés de confirmação na interpretação de "5 tentativas".** No resumo de fechamento, a Larissa diz "**total 5 tentativas**" ([09:48]), e todos confirmam. Isso favorece a leitura que descartei no ciclo 1. A classificação da etapa 2B registrava essa fala (T-AMB-01), mas ela **se perdeu** no caminho até os ADRs: o ADR-003 só citava as falas que apoiavam a leitura escolhida. Mantive a decisão (a), única em que os 5 intervalos e as ~15 h fecham. ADR-003, RFC (questão 6), PRD (FR-11) e FDD agora registram a evidência contrária e mandam a contagem para o design review.
+- **PRD defasado em relação aos ciclos 2 e 3:**
+  - NFR-09 prometia ordem por pedido sem a ressalva do retry.
+  - O-1 dizia "desenho prevê ~2 s" sem o risco do cliente lento. Esse risco entrou no §10 do PRD em linguagem de produto.
+  - O status "Aprovado para implementação" contrariava o design review marcado antes de codar ([09:50] Larissa).
+- **Atribuições sem fonte:** os cenários davam nomes de clientes reais (Atlas, MaxDistribuição, Nova Cargo) a situações em que a reunião não nomeou ninguém. Agora são declarados ilustrativos, com "um cliente". "Developer Relations" saiu. O "arquivamento do histórico" virou "arquivamento das notificações entregues", que é o que o Diego disse ([09:08]); a palavra "histórico" fazia parecer que o histórico de entregas seria arquivado.
+- **Cobertura do Tracker, medida pela primeira vez:** o total passava (~86%), mas os **ADRs isolados tinham ~68%**, abaixo do critério, porque as consequências quase não tinham linha. +16 linhas nos ADRs (consequências e a evidência contrária), o que leva os ADRs a ~93%. Amostra de 13 linhas: 12 se sustentam; a que não se sustentava (PRD-OUT-08, "histórico") foi corrigida.
+- **Lição:** informação pode se perder **entre etapas**. A fala contrária estava capturada na classificação e sumiu quando a interpretação virou decisão. Revisar só o documento final não mostra isso; foi preciso voltar à transcrição.
+- Tracker: +19 linhas e 3 corrigidas. Revalidação: **311 linhas, 0 erros (84% TRANSCRICAO, 49 CODIGO)**; critérios de aceite **76/76 OK**.

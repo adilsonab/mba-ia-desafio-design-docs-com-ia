@@ -71,7 +71,7 @@ Uma linha por alternativa; prós, contras e falas completas ficam no ADR indicad
 
 **Interpretações desta proposta, a confirmar na revisão:**
 
-6. **Contagem de tentativas.** Interpretamos "5 tentativas" como 5 **reenvios** após o envio inicial, o que usa os 5 intervalos e dá ~14,6 h, coerente com "quase 15 horas" ([09:17] Diego).
+6. **Contagem de tentativas.** Interpretamos "5 tentativas" como 5 **reenvios** após o envio inicial, o que usa os 5 intervalos e dá ~14,6 h, coerente com "quase 15 horas" ([09:17] Diego). *Evidência contrária:* o resumo final diz "total 5 tentativas" ([09:48] Larissa), confirmado por todos, o que favorece 5 envios no total (~2,6 h, sem usar o intervalo de 12 h). A reunião se contradiz; a contagem deve ser confirmada no design review.
 7. **Onde vai o `customer_id`.** A reunião deixou "no body ou no path" ([09:32] Larissa). Propomos body nas escritas e query string na listagem.
 8. **Granularidade da outbox.** Propomos uma entrada por webhook interessado, todas com o mesmo `X-Event-Id`, para que retry, DLQ e histórico sejam por endpoint.
 

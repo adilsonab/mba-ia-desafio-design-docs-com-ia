@@ -17,13 +17,14 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | PRD-PUB-01 | `docs/PRD.md` | Público-alvo | Usuários do OMS que representam o cliente usam a API autenticada | TRANSCRICAO | [09:32] Marcos |
 | PRD-PUB-02 | `docs/PRD.md` | Público-alvo | Administrador reprocessa falhas definitivas | TRANSCRICAO | [09:36] Sofia |
 | PRD-PUB-03 | `docs/PRD.md` | Público-alvo | PM documenta a integração no portal do desenvolvedor | TRANSCRICAO | [09:40] Marcos |
+| PRD-META-01 | `docs/PRD.md` | Metadado | Escopo aprovado; desenho técnico em revisão antes de codar | TRANSCRICAO | [09:50] Larissa |
 | PRD-CEN-01 | `docs/PRD.md` | Cenário de uso | Cliente assina só SHIPPED e DELIVERED | TRANSCRICAO | [09:33] Marcos |
 | PRD-CEN-02 | `docs/PRD.md` | Cenário de uso | Endpoint em manutenção de 2 h recebe após reenvios | TRANSCRICAO | [09:16] Diego |
 | PRD-CEN-03 | `docs/PRD.md` | Cenário de uso | Indisponibilidade > ~15 h vai para fila de falhas e replay manual | TRANSCRICAO | [09:18] Diego |
 | PRD-CEN-04 | `docs/PRD.md` | Cenário de uso | Cliente ignora notificação repetida pelo ID do evento | TRANSCRICAO | [09:25] Diego |
 | PRD-CEN-05 | `docs/PRD.md` | Cenário de uso | Cliente troca segredo vazado; antigo vale 24 h | TRANSCRICAO | [09:21] Sofia |
 | PRD-CEN-06 | `docs/PRD.md` | Cenário de uso | Integrador diagnostica pelas últimas 100 entregas | TRANSCRICAO | [09:34] Marcos |
-| PRD-OBJ-01 | `docs/PRD.md` | Objetivo / Métrica | p95 da latência de notificação < 10 s | TRANSCRICAO | [09:02] Marcos |
+| PRD-OBJ-01 | `docs/PRD.md` | Objetivo / Métrica | p95 da latência de notificação < 10 s (sujeito ao risco do cliente lento) | TRANSCRICAO | [09:02] Marcos |
 | PRD-OBJ-02 | `docs/PRD.md` | Objetivo / Métrica | Zero mudanças de status sem evento | TRANSCRICAO | [09:06] Diego |
 | PRD-OBJ-03 | `docs/PRD.md` | Objetivo / Métrica | Janela de reenvio automático de ~15 h | TRANSCRICAO | [09:17] Diego |
 | PRD-OBJ-04 | `docs/PRD.md` | Objetivo / Métrica | 3 de 3 clientes solicitantes em produção até fim de novembro | TRANSCRICAO | [09:45] Marcos |
@@ -35,7 +36,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | PRD-OUT-05 | `docs/PRD.md` | Fora de escopo | Garantia de ordem global | TRANSCRICAO | [09:13] Larissa |
 | PRD-OUT-06 | `docs/PRD.md` | Fora de escopo (descartado) | Entrega exactly-once | TRANSCRICAO | [09:25] Diego |
 | PRD-OUT-07 | `docs/PRD.md` | Fora de escopo (adiado) | Restrição de papel no CRUD de webhooks | TRANSCRICAO | [09:37] Sofia |
-| PRD-OUT-08 | `docs/PRD.md` | Fora de escopo | Arquivamento do histórico (~30 dias) | TRANSCRICAO | [09:08] Diego |
+| PRD-OUT-08 | `docs/PRD.md` | Fora de escopo | Arquivamento das notificações entregues da outbox (~30 dias) | TRANSCRICAO | [09:08] Diego |
 | PRD-FR-01 | `docs/PRD.md` | Requisito Funcional | Notificar o cliente via HTTP a cada mudança de status | TRANSCRICAO | [09:00] Marcos |
 | PRD-FR-02 | `docs/PRD.md` | Requisito Funcional | Cadastrar webhook (cliente, URL, status de interesse) | TRANSCRICAO | [09:31] Marcos |
 | PRD-FR-03 | `docs/PRD.md` | Requisito Funcional | Segredo gerado pela plataforma e devolvido na criação | TRANSCRICAO | [09:31] Marcos |
@@ -47,6 +48,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | PRD-FR-09 | `docs/PRD.md` | Requisito Funcional | Notificação identifica o webhook que a originou | TRANSCRICAO | [09:44] Sofia |
 | PRD-FR-10 | `docs/PRD.md` | Requisito Funcional | Conteúdo essencial do pedido, sem itens | TRANSCRICAO | [09:43] Diego |
 | PRD-FR-11 | `docs/PRD.md` | Requisito Funcional | Até 5 reenvios automáticos com intervalos crescentes | TRANSCRICAO | [09:17] Larissa |
+| PRD-FR-11-EC | `docs/PRD.md` | Interpretação | Contagem de reenvios com falas conflitantes ("total 5 tentativas" no resumo) | TRANSCRICAO | [09:48] Larissa |
 | PRD-FR-12 | `docs/PRD.md` | Requisito Funcional | Falhas definitivas vão para fila de falhas com motivo | TRANSCRICAO | [09:18] Diego |
 | PRD-FR-13 | `docs/PRD.md` | Requisito Funcional | Administrador reenvia item da fila de falhas | TRANSCRICAO | [09:18] Diego |
 | PRD-FR-14 | `docs/PRD.md` | Requisito Funcional | Registrar quem executou o reenvio manual | TRANSCRICAO | [09:36] Sofia |
@@ -59,7 +61,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | PRD-NFR-06 | `docs/PRD.md` | Restrição | Limite de 64 KB, erro sem truncar | TRANSCRICAO | [09:24] Larissa |
 | PRD-NFR-07 | `docs/PRD.md` | Requisito Não Funcional | Timeout de 10 s para resposta do cliente | TRANSCRICAO | [09:42] Diego |
 | PRD-NFR-08 | `docs/PRD.md` | Requisito Não Funcional | Segredo exclusivo por webhook | TRANSCRICAO | [09:21] Sofia |
-| PRD-NFR-09 | `docs/PRD.md` | Restrição | Ordem garantida só por pedido | TRANSCRICAO | [09:13] Larissa |
+| PRD-NFR-09 | `docs/PRD.md` | Restrição | Ordem garantida só por pedido e enquanto não houver reenvio | TRANSCRICAO | [09:13] Larissa |
 | PRD-NFR-10 | `docs/PRD.md` | Restrição | Reprocessamento restrito a ADMIN | TRANSCRICAO | [09:36] Sofia |
 | PRD-NFR-11 | `docs/PRD.md` | Restrição | Sem infraestrutura nova | TRANSCRICAO | [09:07] Diego |
 | PRD-NFR-12 | `docs/PRD.md` | Restrição | Revisão de segurança ≥ 2 dias úteis antes do lançamento | TRANSCRICAO | [09:46] Sofia |
@@ -83,6 +85,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | PRD-RISK-05 | `docs/PRD.md` | Risco | Rajadas de notificações sobrecarregam o cliente | TRANSCRICAO | [09:38] Diego |
 | PRD-RISK-06 | `docs/PRD.md` | Risco | Cliente fora do ar > ~15 h sem aviso | TRANSCRICAO | [09:37] Larissa |
 | PRD-RISK-07 | `docs/PRD.md` | Risco | Qualquer autenticado gerencia webhooks de qualquer cliente | TRANSCRICAO | [09:37] Sofia |
+| PRD-RISK-08 | `docs/PRD.md` | Risco | Um cliente lento atrasa as notificações dos outros | TRANSCRICAO | [09:42] Diego |
 | PRD-AC-01 | `docs/PRD.md` | Critério de aceitação | Notificação de SHIPPED em < 10 s | TRANSCRICAO | [09:02] Marcos |
 | PRD-AC-02 | `docs/PRD.md` | Critério de aceitação | Status fora da lista não notifica | TRANSCRICAO | [09:34] Bruno |
 | PRD-AC-03 | `docs/PRD.md` | Critério de aceitação | 5 reenvios em ~15 h, depois fila de falhas | TRANSCRICAO | [09:17] Larissa |
@@ -121,6 +124,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | RFC-OPEN-04 | `docs/RFC.md` | Questão em aberto | Endurecer permissão do CRUD | TRANSCRICAO | [09:37] Sofia |
 | RFC-OPEN-05 | `docs/RFC.md` | Questão em aberto | Arquivamento da outbox | TRANSCRICAO | [09:08] Diego |
 | RFC-OPEN-06 | `docs/RFC.md` | Interpretação | "5 tentativas" = 5 reenvios após o envio inicial (~14,6 h) | TRANSCRICAO | [09:17] Diego |
+| RFC-OPEN-06-EC | `docs/RFC.md` | Interpretação | Evidência contrária: resumo final diz "total 5 tentativas" | TRANSCRICAO | [09:48] Larissa |
 | RFC-OPEN-07 | `docs/RFC.md` | Interpretação | `customer_id` no body (escrita) e na query (listagem) | TRANSCRICAO | [09:32] Larissa |
 | RFC-OPEN-08 | `docs/RFC.md` | Interpretação | Uma entrada de outbox por webhook, mesmo `X-Event-Id` | TRANSCRICAO | [09:34] Bruno |
 | RFC-OPEN-09 | `docs/RFC.md` | Questão em aberto | Ordem por pedido se perde com retries; levar ao design review | TRANSCRICAO | [09:12] Diego |
@@ -266,37 +270,52 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | ADR-001-CTX-01 | `docs/adrs/ADR-001-outbox-no-mysql.md` | Contexto | Transação de status onde o evento será gravado | CODIGO | `src/modules/orders/order.service.ts` |
 | ADR-001-CONS-01 | `docs/adrs/ADR-001-outbox-no-mysql.md` | Trade-off | Consistência e isolamento de falhas em troca de latência | TRANSCRICAO | [09:06] Diego |
 | ADR-001-CONS-02 | `docs/adrs/ADR-001-outbox-no-mysql.md` | Trade-off | Eventos acumulados podem deixar o worker lento; mitigado com índices e lote | TRANSCRICAO | [09:07] Bruno |
+| ADR-001-CONS-03 | `docs/adrs/ADR-001-outbox-no-mysql.md` | Consequência | Transação de status não depende da rede nem do cliente | TRANSCRICAO | [09:04] Bruno |
+| ADR-001-CONS-04 | `docs/adrs/ADR-001-outbox-no-mysql.md` | Consequência | Tabela cresce até existir arquivamento (adiado) | TRANSCRICAO | [09:08] Diego |
 | ADR-002 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Decisão | Worker separado, polling 2 s | TRANSCRICAO | [09:10] Larissa |
 | ADR-002-ALT-01 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Alternativa descartada | Trigger do banco (MySQL sem NOTIFY/LISTEN) | TRANSCRICAO | [09:09] Diego |
 | ADR-002-ALT-02 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Alternativa descartada | Worker no processo da API | TRANSCRICAO | [09:11] Diego |
 | ADR-002-CONS-01 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Trade-off | Sem ordem global; ordem por pedido só com single-worker | TRANSCRICAO | [09:13] Larissa |
 | ADR-002-CONS-02 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Trade-off | Escala para vários workers adiada | TRANSCRICAO | [09:13] Diego |
 | ADR-002-CONS-03 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Risco | Retry pode inverter a ordem por pedido; questão para o design review | TRANSCRICAO | [09:50] Larissa |
+| ADR-002-CONS-04 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Consequência | Entregas continuam durante reinícios da API | TRANSCRICAO | [09:11] Diego |
+| ADR-002-CONS-05 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Consequência | Latência mínima de 2 s aceita explicitamente | TRANSCRICAO | [09:10] Larissa |
 | ADR-002-CTX-01 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Contexto | Único entry point atual é o servidor HTTP | CODIGO | `src/server.ts` |
 | ADR-003 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Decisão | 5 reenvios, backoff 1m/5m/30m/2h/12h | TRANSCRICAO | [09:17] Larissa |
 | ADR-003-INT-01 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Interpretação | 5 reenvios após o envio inicial (~14,6 h) | TRANSCRICAO | [09:17] Diego |
+| ADR-003-INT-02 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Interpretação | Evidência contrária: "total 5 tentativas" no resumo, confirmado por todos | TRANSCRICAO | [09:48] Larissa |
 | ADR-003-DEC-02 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Decisão | DLQ em tabela separada | TRANSCRICAO | [09:18] Diego |
 | ADR-003-DEC-03 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Decisão | Replay manual restrito a ADMIN via `requireRole` | TRANSCRICAO | [09:36] Larissa |
 | ADR-003-ALT-01 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Alternativa descartada | Retry indefinido | TRANSCRICAO | [09:15] Diego |
 | ADR-003-ALT-02 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Alternativa descartada | Apenas 3 tentativas | TRANSCRICAO | [09:16] Bruno |
 | ADR-003-ALT-03 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Alternativa descartada | "Falhou" na própria outbox | TRANSCRICAO | [09:17] Larissa |
 | ADR-003-CONS-01 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Trade-off | Falhas > 15 h aceitas como problema do cliente | TRANSCRICAO | [09:17] Marcos |
+| ADR-003-CONS-02 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Consequência | Nenhum evento se perde: a DLQ guarda payload e motivo | TRANSCRICAO | [09:18] Diego |
+| ADR-003-CONS-03 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Consequência | Sem aviso proativo ao cliente; e-mail adiado | TRANSCRICAO | [09:37] Larissa |
+| ADR-003-CONS-04 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Consequência | Replay restrito a ADMIN e auditável | TRANSCRICAO | [09:36] Sofia |
 | ADR-004 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Decisão | HMAC-SHA256 sobre o corpo, secret por endpoint, rotação 24 h | TRANSCRICAO | [09:22] Sofia |
 | ADR-004-DEC-02 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Decisão | SHA-256 como algoritmo padrão de mercado | TRANSCRICAO | [09:20] Sofia |
 | ADR-004-ALT-01 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Alternativa descartada | Secret global | TRANSCRICAO | [09:21] Sofia |
 | ADR-004-DEC-03 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Requisito Não Funcional | Somente HTTPS (requisito relacionado, não decisão arquitetural) | TRANSCRICAO | [09:23] Sofia |
 | ADR-004-DEC-04 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Decisão | Secret gerada pela plataforma | TRANSCRICAO | [09:31] Marcos |
+| ADR-004-CONS-01 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Consequência | Vazamento contido a um endpoint e resolvido por rotação | TRANSCRICAO | [09:22] Diego |
+| ADR-004-CONS-02 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Consequência | Secrets exigem revisão de segurança de pelo menos 2 dias úteis | TRANSCRICAO | [09:46] Sofia |
 | ADR-005 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Decisão | At-least-once com `X-Event-Id` | TRANSCRICAO | [09:26] Larissa |
 | ADR-005-DEC-02 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Decisão | UUID gerado na entrada da outbox | TRANSCRICAO | [09:25] Diego |
 | ADR-005-ALT-01 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Alternativa descartada | Exactly-once | TRANSCRICAO | [09:25] Diego |
 | ADR-005-ALT-02 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Alternativa descartada | Stripe e GitHub como referência de at-least-once | TRANSCRICAO | [09:25] Diego |
 | ADR-005-INT-01 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Interpretação | Mesmo `X-Event-Id` em todas as entregas do evento; distinguidas por `X-Webhook-Id` | TRANSCRICAO | [09:44] Sofia |
 | ADR-005-CONS-01 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Trade-off | Responsabilidade de dedup transferida ao cliente | TRANSCRICAO | [09:25] Sofia |
+| ADR-005-CONS-02 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Consequência | Responsabilidade do cliente destacada no portal | TRANSCRICAO | [09:26] Marcos |
+| ADR-005-CONS-03 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Consequência | Timeout de 10 s pode gerar reenvio de evento já processado | TRANSCRICAO | [09:42] Diego |
 | ADR-006 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Decisão | Reuso máximo: AppError, Pino, error middleware, módulos, Zod | TRANSCRICAO | [09:30] Larissa |
 | ADR-006-DEC-02 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Decisão | Prefixo `WEBHOOK_` nos códigos de erro | TRANSCRICAO | [09:29] Larissa |
 | ADR-006-DEC-03 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Decisão | Módulo em `src/modules/webhooks` | TRANSCRICAO | [09:27] Bruno |
 | ADR-006-DEC-04 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Decisão | Função recebendo `tx` em vez de injetar repositório | TRANSCRICAO | [09:41] Diego |
 | ADR-006-CONS-01 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Trade-off | Observabilidade só com logs e tabelas, sem biblioteca nova | TRANSCRICAO | [09:29] Bruno |
+| ADR-006-CONS-02 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Consequência | Erros `WEBHOOK_*` tratados pelo middleware sem alteração | TRANSCRICAO | [09:29] Bruno |
+| ADR-006-CONS-03 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Consequência | Replay herda a fragilidade do cadastro público aceitar ADMIN | CODIGO | `src/modules/auth/auth.schemas.ts` |
+| ADR-006-CONS-04 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Consequência | Worker reutiliza os padrões com instância própria do banco | TRANSCRICAO | [09:30] Bruno |
 | ADR-006-COD-01 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Restrição | Hierarquia `AppError` e classes de erro existentes | CODIGO | `src/shared/errors/http-errors.ts` |
 | ADR-006-COD-02 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Restrição | Error middleware centralizado | CODIGO | `src/middlewares/error.middleware.ts` |
 | ADR-006-COD-03 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Restrição | `requireRole` usado numa única rota hoje | CODIGO | `src/modules/users/user.routes.ts` |

@@ -132,7 +132,7 @@ Após a falha da tentativa `n` (sendo `attempts` o número de tentativas já fei
 | Reenvio 4 | +12 h (reenvio 5) | |
 | Reenvio 5 | → DLQ (5.4) | [09:15] Diego |
 
-Em cada falha, `attempts++`, `lastError` é atualizado, `status=PENDING` e `nextAttemptAt = now + backoff[attempts-1]`. São até 6 chamadas HTTP, numa janela de ~14,6 h entre a primeira falha e a última tentativa (interpretação de "5 tentativas", ver [ADR-003](adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md)).
+Em cada falha, `attempts++`, `lastError` é atualizado, `status=PENDING` e `nextAttemptAt = now + backoff[attempts-1]`. São até 6 chamadas HTTP, numa janela de ~14,6 h entre a primeira falha e a última tentativa (interpretação de "5 tentativas", ver [ADR-003](adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md)). O resumo final da reunião diz "total 5 tentativas" ([09:48] Larissa), o que conflita com essa leitura; a contagem será confirmada no design review. Se mudar, só o tamanho da tabela de backoff muda.
 
 ### 5.4 Dead Letter Queue e replay
 
