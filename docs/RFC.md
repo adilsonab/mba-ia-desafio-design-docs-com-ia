@@ -81,7 +81,7 @@ Uma linha por alternativa; prós, contras e falas completas ficam no ADR indicad
 
 ## 6. Impacto e riscos
 
-**Impacto no sistema existente.** A única mudança em código atual é uma chamada a mais dentro da transação de mudança de status, mais o registro do novo módulo e das rotas. Entram também tabelas novas (configuração, outbox, dead letter, histórico de entregas), um novo processo (o worker) com script próprio e uma revisão de segurança de pelo menos 2 dias úteis antes do deploy ([09:46] Sofia).
+**Impacto no sistema existente.** A mudança central é uma chamada a mais dentro da transação de mudança de status. Em volta dela, o código atual recebe ajustes pequenos: a assinatura de `changeStatus` e o controller de pedidos passam a carregar o `requestId` para correlação; o registro do novo módulo e das rotas (`src/app.ts`, `src/routes/index.ts`); variáveis novas em `src/config/env.ts`; a redaction das secrets no logger; e a ordem de limpeza em `tests/setup.ts`. A lista completa está na seção de integração do [FDD](FDD.md). Entram também tabelas novas (configuração, outbox, dead letter, histórico de entregas), um novo processo (o worker) com script próprio e uma revisão de segurança de pelo menos 2 dias úteis antes do deploy ([09:46] Sofia).
 
 Probabilidade e impacto são estimativas do autor; a reunião não classificou os riscos.
 
@@ -89,6 +89,7 @@ Probabilidade e impacto são estimativas do autor; a reunião não classificou o
 | --- | --- | --- | --- |
 | Cliente não deduplica e processa eventos repetidos | Média | Médio | Destacar at-least-once e `X-Event-Id` no portal do desenvolvedor ([09:26] Marcos) |
 | Mudanças de status concorrentes no mesmo pedido: a transação atual não trava a linha do pedido (`src/modules/orders/order.service.ts`), então dois eventos podem ser gerados a partir do mesmo status de origem | Baixa | Médio | O evento herda a atomicidade da transação. Registrar como limitação no FDD e cobrir com teste de concorrência |
+| Cliente lento segura o worker: entregas sequenciais com timeout de 10 s fazem um cliente lento atrasar os demais, o problema de [09:04] Bruno deslocado para o worker | Média | Alto | Design review: paralelizar o lote entre pedidos diferentes (preserva a ordem por pedido) ou aceitar e monitorar. Detalhes nos riscos do [FDD](FDD.md) |
 | Vazão limitada a um único worker; fila acumula em pico | Baixa | Médio | Lote pequeno e polling de 2 s cumprem < 10 s no volume atual. A escala está na questão em aberto 3 |
 | Replay de DLQ protegido por `requireRole('ADMIN')`, mas o cadastro público hoje aceita o papel ADMIN (`src/modules/auth/auth.schemas.ts`) | Média | Alto | Apontar na revisão de segurança da Sofia como pré-requisito do deploy |
 | Não existe vínculo entre usuário e customer, e o CRUD fica aberto a qualquer autenticado: um usuário pode gerir webhooks de outro customer | Média | Médio | Aceito "por enquanto" ([09:37] Sofia). Questão em aberto 4 |

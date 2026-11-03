@@ -99,3 +99,26 @@ Registro cronológico de prompts, resultados e correções. Fonte para a seção
   - Status "Aceito" dos ADRs mantido, com a justificativa registrada no índice.
 - **Lição:** o script anti-alucinação só confere se o `[hh:mm] Nome` **existe**, não se a fala **sustenta** a frase. Os dois tipos de erro deste ciclo (atribuição inflada e argumento sem fonte) passaram no script. Só a leitura cruzada fala × frase os pegou.
 - Tracker: +6 linhas (RFC-CTX-04, RFC-OPEN-09, ADR-001-CONS-02, ADR-002-CONS-03, ADR-005-ALT-02, ADR-006-CONS-01) e tipo do HTTPS no ADR-004 corrigido. Revalidação: **284 linhas, 0 erros (84% TRANSCRICAO)**; critérios de aceite **76/76 OK**.
+
+## 2026-11-03 — Etapa 10, ciclo 3: revisão crítica do FDD
+
+- **Método:** mesmo do ciclo 2, com um passo a mais: como o FDD cita muito código, a pré-revisão abriu cada arquivo citado e conferiu linhas e assinaturas. **Todas as linhas citadas estavam corretas**; os problemas estavam no desenho e em detalhes inventados sem marca. Foram 13 achados. Aceitei todos, com as opções sugeridas.
+- **Falhas de desenho que nenhum script pegaria:**
+  - **Worker sequencial reintroduz o problema que a outbox resolveu.** Com timeout de 10 s e lote de 10, um cliente lento segura o worker por até ~100 s e atrasa todos os outros clientes: o "cliente lento trava os outros" de [09:04] Bruno, só que no worker. A §8 afirmava "isolamento entre clientes", o que era falso. Corrigida para "parcial", e o risco entrou no FDD e no RFC com duas opções para o design review (paralelizar entre pedidos diferentes, ou aceitar e monitorar).
+  - **Heartbeat invisível:** emitido em `debug`, com `LOG_LEVEL` padrão `info` (`src/config/env.ts:6`). O alerta "worker caído" dispararia sempre. Passou para `info` a cada 30 ciclos.
+- **Contradições com outros documentos e com a reunião:**
+  - O RFC dizia que "a única mudança" no código atual era uma chamada na transação, mas a integração do FDD lista ajustes em 7 arquivos existentes. RFC §6 corrigido.
+  - `publishWebhookEvent` tinha 4 parâmetros na fala do Bruno ([09:41]) e na §5.1, mas 5 no diagrama e na §10. O `requestId` foi mantido, agora marcado como **[D]** e justificado.
+- **Invenção sem marca:**
+  - Só 2 dos 10 códigos de erro vieram da reunião ([09:28] Bruno); os outros 8 receberam **[D]**.
+  - As métricas tinham nomes e tipos de Prometheus (`_total{...}`, histograma, gauge) num projeto sem Prometheus. Viraram indicadores com "como obter" (SQL ou log), e o "p95 < 10 s" foi marcado como **[D]**.
+  - Paginação da listagem marcada como **[D]**.
+  - "Últimos 100" do histórico: registrado como interpretação (tentativas e não eventos), com a origem do payload explicada.
+- **Ajustes técnicos:**
+  - O worker usa o `prisma` exportado, em vez de `createPrismaClient()`, que criaria um 2º cliente no mesmo processo.
+  - A ordem de limpeza em `tests/setup.ts` agora inclui a FK `replayedById` → `users`.
+  - Nota sobre o worker herdar a exigência de `JWT_SECRET`.
+  - Prob./Impacto marcados como estimativa do autor.
+  - Risco de ordem ligado à questão 9 do RFC.
+- **Lição:** no ciclo 2, o erro era a fala não sustentar a frase. Aqui foi outro tipo: o texto estava todo "certo" localmente, mas o **comportamento resultante** contradizia o objetivo. Só simulando o worker com um cliente lento o problema apareceu.
+- Tracker: +8 linhas (FDD-INT-19/20, FDD-OBS-06, FDD-RISK-10/11, FDD-FLUXO-20, FDD-ERRO-13, RFC-RISK-08) e 2 corrigidas (FDD-INT-13, FDD-INT-18). Revalidação: **292 linhas, 0 erros (84% TRANSCRICAO, 48 CODIGO)**; critérios de aceite **76/76 OK**.

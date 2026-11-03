@@ -82,7 +82,7 @@ sequenceDiagram
   OS->>DB: COMMIT (falha em qualquer passo → ROLLBACK de tudo)
 ```
 
-1. `publishWebhookEvent(tx, order, fromStatus, toStatus)` é uma função exportada pelo módulo de webhooks que recebe o `tx` da transação corrente; o `OrderService` não recebe nenhum repositório novo ([09:41] Bruno, [09:41] Diego).
+1. `publishWebhookEvent(tx, order, fromStatus, toStatus)` é uma função exportada pelo módulo de webhooks que recebe o `tx` da transação corrente; o `OrderService` não recebe nenhum repositório novo ([09:41] Bruno, [09:41] Diego). **[D]** Ela ganha um 5º parâmetro opcional, `requestId`, que não estava na proposta do Bruno: sem ele, o evento não se liga à requisição que o gerou, e a correlação da §9.3 não fecha.
 2. Ela é chamada **depois** do `INSERT` em `order_status_history` e antes do re-read final (`order.service.ts:159-176`).
 3. O filtro acontece na inserção: o webhook só entra se estiver `active` e se `toStatus` estiver na sua lista `events` ([09:34] Bruno).
 4. Um `eventId = randomUUID()` é gerado por mudança de status e repetido em todas as linhas ([09:25] Diego; T-AMB-04).
@@ -113,7 +113,7 @@ sequenceDiagram
 ```
 
 - Ponto de entrada `src/worker.ts` e script `npm run worker` ([09:11] Larissa). Lógica em `src/modules/webhooks/webhook.worker.ts` ([09:28] Bruno).
-- O worker cria seu próprio `PrismaClient` via `createPrismaClient()` (`src/config/database.ts`), na mesma `DATABASE_URL` ([09:30] Bruno).
+- O worker importa o `prisma` exportado por `src/config/database.ts`, na mesma `DATABASE_URL`. Como o módulo cria a instância ao ser importado (linha 10), cada processo já tem a sua: é a "instância nova porque é outro processo" de [09:30] Bruno. Chamar `createPrismaClient()` de novo criaria um segundo cliente no mesmo processo.
 - Polling a cada 2 s ([09:09] Diego) em lote pequeno ([09:08] Diego); o tamanho de 10 é **[D]**. Entregas em sequência, por ordem de `createdAt`, e só um worker ([09:12] Diego).
 - Sucesso é qualquer HTTP 2xx. Falha é qualquer outro status, erro de rede ou timeout de 10 s ([09:42] Diego). Redirects não são seguidos (`redirect: 'manual'`) **[D]**, para evitar o envio a destinos não cadastrados.
 - **Recuperação de crash [D]:** na inicialização, linhas `PROCESSING` voltam para `PENDING`. Como a garantia é at-least-once, reenviar é seguro ([ADR-005](adrs/ADR-005-entrega-at-least-once-com-x-event-id.md)).
@@ -192,7 +192,7 @@ Content-Type: application/json
 
 ### 6.2 `GET /api/v1/webhooks?customerId=...`: listar webhooks do customer
 
-Origem: [09:33] Bruno. `customerId` vai na query porque GET não tem body (T-AMB-02). A resposta usa o formato paginado existente (`src/shared/http/response.ts`), com `page` e `pageSize` como nas outras listagens. A secret nunca é exposta.
+Origem: [09:33] Bruno. `customerId` vai na query porque GET não tem body (T-AMB-02). A resposta usa o formato paginado existente (`src/shared/http/response.ts`), com `page` e `pageSize` como nas outras listagens **[D]**. A secret nunca é exposta.
 
 `200 OK`
 ```json
@@ -252,6 +252,9 @@ Origem: [09:33] Bruno. **[D]** A remoção apaga a configuração, e as linhas `
 ### 6.5 `GET /api/v1/webhooks/:id/deliveries`: histórico de entregas
 
 Origem: [09:34] Marcos. Retorna as **últimas 100** tentativas, da mais recente para a mais antiga, com sucesso ou falha, payload, resposta e tempo de resposta.
+
+- **Interpretação:** o Marcos pediu "os últimos 100 webhooks que vocês mandaram". Aqui a unidade é a **tentativa** (cada retry é uma linha), porque é o que mostra ao cliente por que um envio falhou. Com retries, 100 tentativas podem cobrir bem menos de 100 eventos. A alternativa, 100 **eventos** com as tentativas agrupadas, fica para o design review.
+- O `requestPayload` não é copiado em `webhook_deliveries`: vem do snapshot em `webhook_outbox.payload`, via `outboxId`.
 
 `200 OK`
 ```json
@@ -364,18 +367,20 @@ Origem: [09:43] Diego. É enxuto e não inclui `items`; o cliente consulta `GET 
 
 Os erros da API usam `AppError` (`src/shared/errors/app-error.ts`) e as subclasses de `src/shared/errors/http-errors.ts`, com prefixo `WEBHOOK_` ([09:28] Bruno, [09:29] Larissa). `NotFoundError` tem o código fixo `NOT_FOUND` (`http-errors.ts:27-31`). Por isso, os 404 do módulo instanciam `AppError` diretamente. `BadRequestError` e `ConflictError` já aceitam um código customizado.
 
+Só `WEBHOOK_NOT_FOUND` e `WEBHOOK_INVALID_URL` foram citados na reunião ([09:28] Bruno). Os demais nomes são **[D]**: seguem o prefixo e o estilo pedidos, mas a condição que cada um cobre é que vem da reunião.
+
 | Código | HTTP | Onde | Classe | Mensagem / condição |
 | --- | --- | --- | --- | --- |
-| `WEBHOOK_NOT_FOUND` | 404 | API | `AppError` | Webhook `:id` inexistente |
-| `WEBHOOK_CUSTOMER_NOT_FOUND` | 404 | API | `AppError` | `customerId` informado não existe |
-| `WEBHOOK_INVALID_URL` | 400 | API | `BadRequestError(msg, 'WEBHOOK_INVALID_URL')` | URL malformada ou com esquema diferente de `https` ([09:23] Sofia) |
-| `WEBHOOK_DEAD_LETTER_NOT_FOUND` | 404 | API | `AppError` | Item da DLQ inexistente |
-| `WEBHOOK_DEAD_LETTER_ALREADY_REPLAYED` | 409 | API | `ConflictError(msg, '...')` | Item já reprocessado **[D]** |
-| `WEBHOOK_PAYLOAD_TOO_LARGE` | — | Worker | Motivo na DLQ | Payload > 64 KB; vai direto para a DLQ ([09:23] Sofia, [09:24] Larissa) |
-| `WEBHOOK_DELIVERY_TIMEOUT` | — | Worker | `lastError` / motivo na DLQ | Sem resposta em 10 s ([09:42] Diego) |
-| `WEBHOOK_DELIVERY_HTTP_ERROR` | — | Worker | `lastError` / motivo na DLQ | Cliente respondeu com status diferente de 2xx |
-| `WEBHOOK_DELIVERY_NETWORK_ERROR` | — | Worker | `lastError` / motivo na DLQ | DNS, conexão recusada, TLS |
-| `WEBHOOK_MAX_ATTEMPTS_EXCEEDED` | — | Worker | Motivo na DLQ | 5 reenvios esgotados ([09:15] Diego) |
+| `WEBHOOK_NOT_FOUND` | 404 | API | `AppError` | Webhook `:id` inexistente ([09:28] Bruno) |
+| `WEBHOOK_CUSTOMER_NOT_FOUND` **[D]** | 404 | API | `AppError` | `customerId` informado não existe |
+| `WEBHOOK_INVALID_URL` | 400 | API | `BadRequestError(msg, 'WEBHOOK_INVALID_URL')` | URL malformada ou com esquema diferente de `https` ([09:23] Sofia, [09:28] Bruno) |
+| `WEBHOOK_DEAD_LETTER_NOT_FOUND` **[D]** | 404 | API | `AppError` | Item da DLQ inexistente |
+| `WEBHOOK_DEAD_LETTER_ALREADY_REPLAYED` **[D]** | 409 | API | `ConflictError(msg, '...')` | Item já reprocessado |
+| `WEBHOOK_PAYLOAD_TOO_LARGE` **[D]** | — | Worker | Motivo na DLQ | Payload > 64 KB; vai direto para a DLQ ([09:23] Sofia, [09:24] Larissa) |
+| `WEBHOOK_DELIVERY_TIMEOUT` **[D]** | — | Worker | `lastError` / motivo na DLQ | Sem resposta em 10 s ([09:42] Diego) |
+| `WEBHOOK_DELIVERY_HTTP_ERROR` **[D]** | — | Worker | `lastError` / motivo na DLQ | Cliente respondeu com status diferente de 2xx |
+| `WEBHOOK_DELIVERY_NETWORK_ERROR` **[D]** | — | Worker | `lastError` / motivo na DLQ | DNS, conexão recusada, TLS |
+| `WEBHOOK_MAX_ATTEMPTS_EXCEEDED` **[D]** | — | Worker | Motivo na DLQ | 5 reenvios esgotados ([09:15] Diego) |
 
 Erros genéricos reaproveitados sem mudança: `VALIDATION_ERROR` (400, Zod), `UNAUTHORIZED` (401) e `FORBIDDEN` (403, `requireRole`).
 
@@ -396,7 +401,7 @@ Erros genéricos reaproveitados sem mudança: `VALIDATION_ERROR` (400, Zod), `UN
 | Reinício da API | Não afeta entregas: o worker é outro processo | [09:11] Diego |
 | Shutdown do worker | SIGINT/SIGTERM: termina o lote atual, `prisma.$disconnect()` e sai, no mesmo padrão de `src/server.ts` | `src/server.ts` |
 | Limite de payload | > 64 KB: DLQ sem tentativa (não trunca) | [09:23] Sofia |
-| Isolamento entre clientes | Cada linha da outbox tem retry próprio; um cliente fora do ar não bloqueia os outros, porque os eventos dele são reagendados por `nextAttemptAt` | [09:04] Bruno (motivação) **[D]** |
+| Isolamento entre clientes | **Parcial.** Um cliente **fora do ar** não bloqueia os outros: cada linha tem retry próprio, reagendado por `nextAttemptAt`. Um cliente **lento** bloqueia: as entregas do lote são sequenciais, e cada uma pode levar até 10 s. Ver o risco "cliente lento segura o worker" (§13) | [09:04] Bruno (motivação) **[D]** |
 
 ## 9. Observabilidade
 
@@ -415,21 +420,22 @@ Os logs do worker usam um child logger `logger.child({ component: 'webhook-worke
 | `webhook_dead_letter_replayed` | info | `deadLetterId`, `eventId`, `userId`, `requestId`: **auditoria do replay** ([09:36] Sofia) |
 | `webhook_secret_rotated` | info | `webhookId`, `userId`, `previousSecretExpiresAt` (nunca a secret) |
 | `webhook_worker_started` / `webhook_worker_stopped` | info | `pollIntervalMs`, `batchSize`, `recoveredProcessing` |
+| `webhook_worker_heartbeat` **[D]** | info | `cycles`, `pendingCount`; emitido a cada 30 ciclos (~1 min) |
 
 Secrets nunca são logadas. O caminho `*.secret` e `*.previousSecret` entra nos `redactPaths` de `src/shared/logger/index.ts`.
 
 ### 9.2 Métricas
 
-As métricas são derivadas dos logs e das tabelas, sem biblioteca nova.
+As métricas são derivadas dos logs e das tabelas, sem biblioteca nova. Não há Prometheus nem outro coletor: cada indicador é uma consulta SQL ou uma agregação sobre os logs Pino.
 
-| Métrica | Tipo | Cálculo | Alvo / alerta |
+| Indicador | Como obter | Cálculo | Alvo / alerta |
 | --- | --- | --- | --- |
-| `webhook_delivery_latency_ms` | histograma (campo `latencyMs`) | `entregue_em - outbox.createdAt` na 1ª tentativa bem-sucedida | p95 < 10 s ([09:02] Marcos) |
-| `webhook_outbox_pending` | gauge | `COUNT(*) WHERE status='PENDING'` | Tendência de alta indica worker parado ou lento |
-| `webhook_outbox_oldest_pending_age_s` | gauge | `now - MIN(createdAt) WHERE status='PENDING' AND attempts=0` | > 10 s indica que o worker não está acompanhando |
-| `webhook_deliveries_total{success}` | contador | `webhook_deliveries` por `success` | Taxa de falha por webhook |
-| `webhook_dead_letter_total` | contador | linhas em `webhook_dead_letter` | Qualquer crescimento merece investigação |
-| `webhook_worker_heartbeat` | log por ciclo | `webhook_worker_poll` em nível `debug` | Ausência indica worker caído |
+| Latência de entrega | Agregação de log (campo `latencyMs` de `webhook_delivery_succeeded`) | `entregue_em - outbox.createdAt` na 1ª tentativa bem-sucedida | p95 < 10 s **[D]**, derivado do "abaixo de 10 segundos" de [09:02] Marcos |
+| Eventos pendentes | Consulta SQL | `COUNT(*) FROM webhook_outbox WHERE status='PENDING'` | Tendência de alta indica worker parado ou lento |
+| Idade do pendente mais antigo | Consulta SQL | `now - MIN(createdAt) WHERE status='PENDING' AND attempts=0` | > 10 s indica que o worker não está acompanhando |
+| Taxa de falha por webhook | Consulta SQL | `webhook_deliveries` agrupado por `webhookId` e `success` | Acompanhamento; sem limiar definido na reunião |
+| Itens na DLQ | Consulta SQL | `COUNT(*) FROM webhook_dead_letter WHERE replayedAt IS NULL` | Qualquer crescimento merece investigação |
+| Heartbeat do worker | Log `webhook_worker_heartbeat` em nível `info`, a cada 30 ciclos (~1 min) **[D]** | Presença do log no último minuto | Ausência indica worker caído. Em `debug` ele sumiria, porque o `LOG_LEVEL` padrão é `info` (`src/config/env.ts:6`) |
 
 ### 9.3 Tracing (correlação)
 
@@ -443,7 +449,7 @@ Para isso, `OrderController.changeStatus` passa `req.id` ao service. Hoje o requ
 
 | # | Arquivo existente | Como o módulo de webhooks se integra |
 | --- | --- | --- |
-| 1 | `src/modules/orders/order.service.ts` | **Ponto crítico.** Em `changeStatus` (linhas 131-178), depois do `tx.orderStatusHistory.create` (159-167) e antes do re-read final, chamar `publishWebhookEvent(tx, order, from, to, requestId)`. O `order` carregado na linha 132 já tem `customerId`, `orderNumber` e `totalCents`. A assinatura ganha um parâmetro opcional `requestId`. O `OrderService` não recebe repositório novo ([09:41] Bruno, [09:41] Diego). A falha da função propaga e desfaz a transação ([09:40] Bruno). |
+| 1 | `src/modules/orders/order.service.ts` | **Ponto crítico.** Em `changeStatus` (linhas 131-178), depois do `tx.orderStatusHistory.create` (159-167) e antes do re-read final, chamar `publishWebhookEvent(tx, order, from, to, requestId)`. O `order` carregado na linha 132 já tem `customerId`, `orderNumber` e `totalCents`. A assinatura de `changeStatus` ganha um parâmetro opcional `requestId` **[D]** (§5.1). O `OrderService` não recebe repositório novo ([09:41] Bruno, [09:41] Diego). A falha da função propaga e desfaz a transação ([09:40] Bruno). |
 | 2 | `src/modules/orders/order.controller.ts` | `changeStatus` (linha 41) passa `req.id` como `requestId`, para a correlação (§9.3). A resposta HTTP não muda. |
 | 3 | `src/modules/orders/order.status.ts` | Sem alteração. A máquina de estados continua sendo a única fonte de transições válidas: só transições aprovadas por `canTransition` geram evento. Os valores aceitos em `events` são o enum `OrderStatus`. |
 | 4 | `src/app.ts` | Em `buildControllers` (linhas 26-53), instanciar `WebhookRepository`, `WebhookService` e `WebhookController`, no mesmo padrão manual dos outros módulos, e incluí-los no objeto `Controllers`. |
@@ -454,12 +460,12 @@ Para isso, `OrderController.changeStatus` passa `req.id` ao service. Hoje o requ
 | 9 | `src/middlewares/validate.middleware.ts` | Reuso para os schemas Zod do módulo (`webhook.schemas.ts`): body, params (`id` UUID) e query (`customerId`, `page`, `pageSize`). |
 | 10 | `src/shared/logger/index.ts` | O worker e o módulo usam o `logger` existente (child logger no worker). Acrescentar `*.secret` e `*.previousSecret` em `redactPaths` (linhas 4-11). |
 | 11 | `src/shared/http/response.ts` | `paginated()` na listagem de webhooks (§6.2). |
-| 12 | `src/config/database.ts` | O worker chama `createPrismaClient()` para ter sua própria instância ([09:30] Bruno). |
-| 13 | `src/config/env.ts` | Novas variáveis com default, validadas no `envSchema`: `WEBHOOK_POLL_INTERVAL_MS=2000` ([09:09] Diego), `WEBHOOK_HTTP_TIMEOUT_MS=10000` ([09:42] Diego), `WEBHOOK_BATCH_SIZE=10` **[D]**. |
+| 12 | `src/config/database.ts` | Sem alteração. O worker importa o `prisma` exportado (linha 10), que já é uma instância própria por processo ([09:30] Bruno). |
+| 13 | `src/config/env.ts` | Novas variáveis com default, validadas no `envSchema`: `WEBHOOK_POLL_INTERVAL_MS=2000` ([09:09] Diego), `WEBHOOK_HTTP_TIMEOUT_MS=10000` ([09:42] Diego), `WEBHOOK_BATCH_SIZE=10` **[D]**. Atenção: o worker importa o `env` e herda a exigência de `JWT_SECRET` (linha 8), mesmo sem usá-lo. Basta o worker rodar com o mesmo `.env` da API. |
 | 14 | `src/server.ts` | Modelo para o novo `src/worker.ts`: bootstrap, `logger.fatal` em falha, shutdown em SIGINT/SIGTERM com `prisma.$disconnect()` ([09:11] Larissa). |
 | 15 | `prisma/schema.prisma` | Novos models (§4), relação `Customer` → `WebhookEndpoint[]` e nova migration. |
 | 16 | `package.json` | Scripts `worker` (`node --env-file=.env dist/worker.js`) e `worker:dev` (`tsx watch --env-file=.env src/worker.ts`), seguindo `start`/`dev` ([09:11] Larissa). Nenhuma dependência nova. |
-| 17 | `tests/setup.ts` | O `beforeEach` (linhas 8-16) apaga as tabelas na ordem das FKs. As novas tabelas precisam ser limpas **antes** de `customer`, senão a FK de `webhook_endpoints` bloqueia o `customer.deleteMany()`. |
+| 17 | `tests/setup.ts` | O `beforeEach` (linhas 8-16) apaga as tabelas na ordem das FKs. As novas tabelas entram no início, nesta ordem: `webhookDeadLetter` → `webhookDelivery` → `webhookOutbox` → `webhookEndpoint`. Assim elas saem antes de `customer` (FK de `webhook_endpoints`) e de `user` (FK `replayedById` da DLQ). |
 
 **Novos arquivos** (padrão de módulo, [09:27] Bruno): `src/modules/webhooks/webhook.{routes,controller,service,repository,schemas}.ts`, `webhook.publisher.ts` (com `publishWebhookEvent`), `webhook.worker.ts`, `webhook.signer.ts` e `src/worker.ts`.
 
@@ -495,14 +501,17 @@ Para isso, `OrderController.changeStatus` passa `req.id` ao service. Hoje o requ
 
 ## 13. Riscos e mitigação
 
-| Risco | Prob. | Impacto | Mitigação |
+Probabilidade e impacto são estimativas do autor; a reunião não classificou os riscos.
+
+| Risco | Prob. (estimativa do autor) | Impacto (estimativa do autor) | Mitigação |
 | --- | --- | --- | --- |
-| **Ordem invertida com retries:** se o evento A de um pedido falha e vai para retry, o evento B do mesmo pedido pode ser entregue antes. A garantia "ordem por `order_id`" ([09:12] Diego) vale só quando as primeiras tentativas dão certo | Média | Médio | Documentar no contrato que o cliente deve usar `timestamp` e `to_status`. Avaliar no design review a opção de segurar eventos posteriores do mesmo par pedido×webhook enquanto houver um anterior pendente |
+| **Cliente lento segura o worker:** as entregas do lote são sequenciais, com até 10 s cada ([09:42] Diego). Um cliente que sempre estoura o timeout, com 10 eventos no lote, atrasa todos os outros clientes em até ~100 s. É o "cliente lento trava os outros" de [09:04] Bruno, deslocado para o worker, e quebra o OT-1 nesse cenário | Média | Alto | Levar ao design review: (a) processar o lote em paralelo **entre pedidos diferentes**, mantendo sequencial dentro do mesmo pedido, o que preserva a ordem por pedido; ou (b) aceitar a limitação no volume atual e monitorar pela idade do pendente mais antigo (§9.2) |
+| **Ordem invertida com retries:** se o evento A de um pedido falha e vai para retry, o evento B do mesmo pedido pode ser entregue antes. A garantia "ordem por `order_id`" ([09:12] Diego) vale só quando as primeiras tentativas dão certo | Média | Médio | Questão em aberto 9 do [RFC](RFC.md). Opções: documentar no contrato que o cliente deve usar `timestamp` e `to_status`, ou segurar eventos posteriores do mesmo par pedido×webhook enquanto houver um anterior pendente |
 | Mudanças de status concorrentes no mesmo pedido: `changeStatus` lê o pedido sem lock (`order.service.ts:132`), então dois eventos podem sair com o mesmo `from_status` | Baixa | Médio | Herdado do código atual. O evento reflete exatamente o que foi commitado. Cobrir com teste de concorrência e reportar ao time de Pedidos |
 | Secret guardada em texto puro, necessário para assinar | Média | Alto | Item obrigatório da revisão da Sofia ([09:46] Sofia); redaction nos logs; secret nunca exposta após a criação |
 | Replay protegido por `requireRole('ADMIN')`, mas o cadastro público aceita `role: ADMIN` (`src/modules/auth/auth.schemas.ts`) | Média | Alto | Registrar como pré-requisito na revisão de segurança |
 | Sem vínculo usuário↔customer: qualquer usuário autenticado gerencia webhooks de qualquer customer | Média | Médio | Aceito por enquanto ([09:37] Sofia); questão em aberto no RFC |
 | `X-Timestamp` não entra na assinatura (o HMAC cobre só o corpo, [09:22] Sofia), então um atacante poderia reenviar uma requisição capturada com novo timestamp | Baixa | Baixo | O `timestamp` assinado no corpo e a dedup por `event_id` neutralizam o reenvio. Levar à revisão da Sofia |
 | Crescimento contínuo de `webhook_outbox` e `webhook_deliveries` | Alta | Baixo | Índices em `status` e `createdAt`. O arquivamento foi adiado ([09:08] Diego). Monitorar o volume |
-| Worker único parado: nada é entregue | Baixa | Alto | Métricas `webhook_outbox_oldest_pending_age_s` e heartbeat (§9.2); supervisão do processo na implantação |
+| Worker único parado: nada é entregue | Baixa | Alto | Indicadores "idade do pendente mais antigo" e "heartbeat do worker" (§9.2); supervisão do processo na implantação |
 | `tests/setup.ts` falha por FK se as novas tabelas não forem limpas | Alta | Baixo | Atualizar a ordem do `beforeEach` (§10, item 17) |

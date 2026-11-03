@@ -219,12 +219,20 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | FDD-INT-10 | `docs/FDD.md` | Integração | Schemas Zod via `validate` | CODIGO | `src/middlewares/validate.middleware.ts` |
 | FDD-INT-11 | `docs/FDD.md` | Integração | Logger existente + redaction de secrets | CODIGO | `src/shared/logger/index.ts` |
 | FDD-INT-12 | `docs/FDD.md` | Integração | `paginated()` na listagem | CODIGO | `src/shared/http/response.ts` |
-| FDD-INT-13 | `docs/FDD.md` | Integração | Worker usa `createPrismaClient()` | CODIGO | `src/config/database.ts` |
+| FDD-INT-13 | `docs/FDD.md` | Integração | Worker importa o `prisma` exportado (instância própria por processo) | CODIGO | `src/config/database.ts` |
+| FDD-INT-19 | `docs/FDD.md` | Restrição | Worker herda a exigência de `JWT_SECRET` ao importar o `env` | CODIGO | `src/config/env.ts` |
+| FDD-OBS-06 | `docs/FDD.md` | Restrição | Heartbeat em `info`: `LOG_LEVEL` padrão é `info`, `debug` não seria emitido | CODIGO | `src/config/env.ts` |
+| FDD-RISK-10 | `docs/FDD.md` | Risco | Cliente lento segura o worker sequencial (até 10 s por entrega) | TRANSCRICAO | [09:42] Diego |
+| FDD-RISK-11 | `docs/FDD.md` | Risco | Mesmo problema de cliente lento travando os outros, agora no worker | TRANSCRICAO | [09:04] Bruno |
+| FDD-FLUXO-20 | `docs/FDD.md` | Decisão de desenho (derivada) | `requestId` como 5º parâmetro de `publishWebhookEvent` | TRANSCRICAO | [09:41] Bruno |
+| FDD-INT-20 | `docs/FDD.md` | Interpretação | Histórico "últimos 100" contado em tentativas, não em eventos | TRANSCRICAO | [09:34] Marcos |
+| FDD-ERRO-13 | `docs/FDD.md` | Restrição | Códigos citados na reunião: `WEBHOOK_NOT_FOUND`, `WEBHOOK_INVALID_URL`; demais são [D] | TRANSCRICAO | [09:28] Bruno |
+| RFC-RISK-08 | `docs/RFC.md` | Risco | Cliente lento segura o worker | TRANSCRICAO | [09:04] Bruno |
 | FDD-INT-14 | `docs/FDD.md` | Integração | Novas variáveis no `envSchema` | CODIGO | `src/config/env.ts` |
 | FDD-INT-15 | `docs/FDD.md` | Integração | `src/server.ts` como modelo do `src/worker.ts` | CODIGO | `src/server.ts` |
 | FDD-INT-16 | `docs/FDD.md` | Integração | Novos models e relação em `Customer` | CODIGO | `prisma/schema.prisma` |
 | FDD-INT-17 | `docs/FDD.md` | Integração | Scripts `worker` / `worker:dev` | CODIGO | `package.json` |
-| FDD-INT-18 | `docs/FDD.md` | Integração | Limpeza das novas tabelas no `beforeEach` antes de `customer` | CODIGO | `tests/setup.ts` |
+| FDD-INT-18 | `docs/FDD.md` | Integração | Limpeza das novas tabelas no `beforeEach` antes de `customer` e `user` (FK `replayedById`) | CODIGO | `tests/setup.ts` |
 | FDD-DEP-01 | `docs/FDD.md` | Dependência | MySQL 8 já usado | CODIGO | `docker-compose.yml` |
 | FDD-DEP-02 | `docs/FDD.md` | Dependência | Node ≥ 20 (`fetch`, `crypto` nativos) | CODIGO | `package.json` |
 | FDD-DEP-03 | `docs/FDD.md` | Dependência | Revisão de segurança antes do deploy | TRANSCRICAO | [09:46] Sofia |
