@@ -19,7 +19,7 @@ A questão é se o novo módulo segue esses padrões ou introduz abordagens pró
 
 ## Alternativas Consideradas
 
-1. **Abordagem própria para o módulo**: classes de erro, logging e organização específicos.
+1. **Abordagem própria para o módulo**: classes de erro, logging e organização específicos. *(Análise do autor: essa alternativa não foi proposta na reunião, que partiu direto para o reuso. Fica registrada só como contraste, para tornar explícito o que a decisão evita.)*
 2. **Reuso máximo dos padrões existentes**, com o webhook como "módulo igual aos outros".
 
 Para a integração com pedidos, também se considerou **injetar um repositório de webhooks inteiro** no serviço de pedidos ([09:41] Bruno).
@@ -39,7 +39,7 @@ Para a integração com pedidos, também se considerou **injetar um repositório
 
 ## Prós e Contras das Alternativas
 
-### Abordagem própria
+### Abordagem própria *(análise do autor)*
 - ✅ Liberdade para otimizar o módulo isoladamente.
 - ❌ Duas formas de fazer a mesma coisa na base de código.
 - ❌ Exigiria adaptar o middleware de erro e o logging.
@@ -63,7 +63,7 @@ Para a integração com pedidos, também se considerou **injetar um repositório
 
 ### Negativas
 - O módulo herda fragilidades do código atual: `requireRole` hoje protege uma única rota (`src/modules/users/user.routes.ts`), e o cadastro público aceita criar usuários ADMIN (`src/modules/auth/auth.schemas.ts`). A proteção do replay fica tão forte quanto esse controle.
-- Os padrões atuais não incluem métricas nem tracing. Observabilidade além de logs terá de ser introduzida pelo próprio módulo.
+- Os padrões atuais não incluem métricas nem tracing, e a decisão foi não adicionar bibliotecas ([09:29] Bruno). Por isso, as métricas do módulo são derivadas dos logs Pino e das próprias tabelas, e o rastreamento é feito por correlação de IDs (detalhes no [FDD](../FDD.md)). Fica uma observabilidade mais limitada que a de uma stack dedicada.
 - O worker, sendo outro processo, reutiliza os padrões, mas precisa da sua própria instância de cliente de banco ([09:30] Bruno).
 
 ### Trade-off explícito

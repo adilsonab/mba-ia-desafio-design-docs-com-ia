@@ -35,7 +35,7 @@ O PM vai destacar essa responsabilidade do cliente no portal do desenvolvedor ([
 ### Exactly-once
 - ✅ O cliente não precisa tratar duplicatas.
 - ❌ Exige coordenação dos dois lados, "muito mais complexo" ([09:25] Diego).
-- ❌ Não é praticado pelos provedores de referência do mercado ([09:25] Diego).
+- ❌ Os exemplos de mercado citados na reunião, Stripe e GitHub, usam at-least-once, não exactly-once ([09:25] Diego).
 
 ### At-least-once com X-Event-Id (escolhida)
 - ✅ Padrão de mercado ("Stripe faz assim, GitHub faz assim", [09:25] Diego).
@@ -56,7 +56,7 @@ O PM vai destacar essa responsabilidade do cliente no portal do desenvolvedor ([
 - Duplicatas também podem surgir de replays manuais da DLQ ([ADR-003](ADR-003-retry-com-backoff-exponencial-e-dlq.md)).
 
 ### Trade-off explícito
-A plataforma abre mão de **simplicidade para o cliente** (não precisar deduplicar) em troca de **simplicidade e confiabilidade do lado da plataforma**. É o mesmo equilíbrio adotado pelos principais provedores de webhooks.
+A plataforma abre mão de **simplicidade para o cliente** (não precisar deduplicar) em troca de **simplicidade e confiabilidade do lado da plataforma**. É o mesmo equilíbrio de Stripe e GitHub, citados como referência na reunião ([09:25] Diego).
 
 ## Referências
 

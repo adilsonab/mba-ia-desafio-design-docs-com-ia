@@ -80,3 +80,22 @@ Registro cronológico de prompts, resultados e correções. Fonte para a seção
 - Tracker revalidado: 278 linhas, 0 erros (83% TRANSCRICAO, 46 CODIGO).
 - `git status`: só `README.md` e `docs/` alterados; `src/`, `prisma/`, `tests/`, `package.json` e `TRANSCRICAO.md` intactos.
 - Pendente para a etapa 10: revisão crítica humana do conteúdo (genérico? repetido entre documentos? origem que não sustenta o texto?) — o script verifica estrutura e existência, não qualidade.
+
+## 2026-11-03 — Etapa 10, ciclo 2: revisão crítica de ADRs e RFC
+
+- **Pergunta que motivou o ciclo:** as "5 iterações" do README eram, na maioria, ajustes feitos pela IA durante a geração. Só a revisão da classificação foi um ciclo real de gerar → revisar → corrigir. ADRs e RFC ainda não tinham passado por revisão crítica.
+- **Método:** pedi à IA uma pré-revisão que conferisse cada afirmação contra a fala citada na transcrição, em vez de só checar o formato. Ela trouxe 13 achados com o trecho e uma proposta de correção para cada. Li tudo e decidi item a item. Aceitei todos, com uma regra minha: **nada de remover** argumentos sem fonte; eles ficam, mas marcados como *(análise do autor)*.
+- **Contradições entre documentos (as mais graves):**
+  - ADR-002 e RFC prometiam ordem por pedido com um único worker, mas o FDD já mostrava que **retry inverte a ordem**. A ressalva entrou nos dois, e o tema virou a questão em aberto 9 do RFC, para o design review.
+  - ADR-006 dizia que o módulo teria de "introduzir observabilidade além de logs", contra o FDD e o "nada novo" ([09:29] Bruno). Alinhado ao FDD.
+- **Falas atribuídas a quem não as disse:** o ADR-005 punha na boca do Diego que "exactly-once não é praticado pelos provedores". Ele só citou Stripe e GitHub. Corrigido para a fala literal.
+- **Argumentos sem fonte** (ADR-001, 002, 003 e a alternativa "abordagem própria" do ADR-006, que ninguém propôs) passaram a ser marcados como *(análise do autor)*. A convenção ficou documentada em `docs/adrs/README.md`.
+- **Fonte real no lugar de frase genérica:** o "volume pesa no banco" do ADR-001 virou a troca real entre [09:07] Bruno e [09:08] Diego.
+- **Ajustes menores:**
+  - ADR-004: HTTPS e timestamp saíram da decisão e foram para "requisitos relacionados", porque a própria Sofia disse que HTTPS "nem é decisão arquitetural" ([09:23]).
+  - RFC: Prob/Impacto marcados como estimativa do autor.
+  - RFC: prazo com as duas falas ("fim do trimestre" e "fim de novembro").
+  - RFC: a tabela de alternativas enxugada para uma linha mais o link do ADR, para não repetir os ADRs.
+  - Status "Aceito" dos ADRs mantido, com a justificativa registrada no índice.
+- **Lição:** o script anti-alucinação só confere se o `[hh:mm] Nome` **existe**, não se a fala **sustenta** a frase. Os dois tipos de erro deste ciclo (atribuição inflada e argumento sem fonte) passaram no script. Só a leitura cruzada fala × frase os pegou.
+- Tracker: +6 linhas (RFC-CTX-04, RFC-OPEN-09, ADR-001-CONS-02, ADR-002-CONS-03, ADR-005-ALT-02, ADR-006-CONS-01) e tipo do HTTPS no ADR-004 corrigido. Revalidação: **284 linhas, 0 erros (84% TRANSCRICAO)**; critérios de aceite **76/76 OK**.

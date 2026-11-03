@@ -16,7 +16,7 @@ A proposta não adiciona infraestrutura e segue os padrões atuais do projeto. A
 
 ## 2. Contexto e problema
 
-Três clientes B2B (Atlas Comercial, MaxDistribuição e Nova Cargo) pediram formalmente para ser avisados quando o status de seus pedidos muda. Hoje eles consultam `GET /orders` periodicamente, o que deixa a integração lenta e cara. A Atlas sinalizou que pode migrar para um concorrente se a solução não sair no prazo ([09:00] Marcos), e pediu entrega até o fim de novembro ([09:45] Marcos). Para os clientes, "tempo real" é **qualquer coisa abaixo de 10 segundos** ([09:02] Marcos). O fluxo é só de saída: os clientes recebem, não enviam ([09:02] Marcos).
+Três clientes B2B (Atlas Comercial, MaxDistribuição e Nova Cargo) pediram formalmente para ser avisados quando o status de seus pedidos muda. Hoje eles consultam `GET /orders` periodicamente, o que deixa a integração lenta e cara. A Atlas sinalizou que pode migrar para um concorrente se a solução não sair "até fim do trimestre" ([09:00] Marcos). Mais adiante, o prazo foi dito como "fim de novembro" ([09:45] Marcos). Esta proposta adota o prazo mais restritivo, novembro. Para os clientes, "tempo real" é **qualquer coisa abaixo de 10 segundos** ([09:02] Marcos). O fluxo é só de saída: os clientes recebem, não enviam ([09:02] Marcos).
 
 O OMS não tem hoje nenhum mecanismo de eventos, filas, workers ou chamadas HTTP de saída. Todas as mudanças de status passam por uma única transação no serviço de pedidos, que valida a transição na máquina de estados, movimenta estoque, atualiza o pedido e grava o histórico (`src/modules/orders/order.service.ts`, `src/modules/orders/order.status.ts`). Essa transação já é considerada pesada ([09:04] Bruno). O desafio é notificar **sem tornar essa transação dependente da rede** e **sem perder nem inventar eventos**.
 
@@ -33,7 +33,7 @@ flowchart LR
 
 **3.1 Publicação do evento.** Na transação de mudança de status, uma função de publicação recebe o contexto transacional e grava o evento na outbox, **uma entrada por webhook interessado** naquele status. O filtro por status acontece nesse momento: se nenhum webhook do cliente quer o status, nada é gravado ([09:34] Bruno). O conteúdo é um **snapshot** do pedido no instante da mudança ([09:52] Larissa). Se a gravação falhar, a mudança de status é desfeita ([09:40] Bruno). → [ADR-001](adrs/ADR-001-outbox-no-mysql.md)
 
-**3.2 Entrega.** Um worker com ponto de entrada próprio, no mesmo banco e na mesma stack mas em outro processo, busca a cada 2 s os eventos pendentes mais antigos e faz as chamadas HTTP com timeout de 10 s ([09:09] Diego, [09:11] Larissa, [09:42] Diego). Há um único worker, e a ordem é garantida apenas por pedido. → [ADR-002](adrs/ADR-002-worker-separado-com-polling.md)
+**3.2 Entrega.** Um worker com ponto de entrada próprio, no mesmo banco e na mesma stack mas em outro processo, busca a cada 2 s os eventos pendentes mais antigos e faz as chamadas HTTP com timeout de 10 s ([09:09] Diego, [09:11] Larissa, [09:42] Diego). Há um único worker, e a ordem é garantida apenas por pedido e só enquanto não há falha: um evento em retry pode ser ultrapassado pelo seguinte do mesmo pedido (questão em aberto 9). → [ADR-002](adrs/ADR-002-worker-separado-com-polling.md)
 
 **3.3 Falhas.** Até 5 reenvios com intervalos de 1m/5m/30m/2h/12h. Depois disso, o evento vai para a tabela de dead letter, com o motivo da falha. Um endpoint administrativo restrito a ADMIN recoloca o evento na fila e registra quem fez o replay ([09:17] Larissa, [09:18] Diego, [09:36] Sofia). → [ADR-003](adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md)
 
@@ -47,15 +47,17 @@ flowchart LR
 
 ## 4. Alternativas consideradas
 
-| Alternativa | Por que foi descartada (trade-off) | Origem |
+Uma linha por alternativa; prós, contras e falas completas ficam no ADR indicado.
+
+| Alternativa | Motivo principal do descarte | Detalhes |
 | --- | --- | --- |
-| **Disparo síncrono** dentro da transação de status | Simples e imediato, mas um cliente lento travaria a mudança de status de outros pedidos, e um cliente fora do ar obrigaria a desfazer uma mudança válida | [09:04] Bruno, [09:06] Diego |
-| **Fila externa** (Redis Streams / Redis Cluster) | Melhor para alto volume, mas exige subir e operar infraestrutura nova. É "overengineering" para um time pequeno | [09:07] Larissa, [09:07] Diego |
-| **Trigger do banco** acordando o worker | Seria reativo, mas o MySQL não tem NOTIFY/LISTEN, e avisar um processo externo exigiria improviso. O polling de 2 s já atende o limite de 10 s | [09:09] Bruno, [09:09] Diego |
-| **Worker dentro do processo da API** | Um processo a menos para implantar, mas reiniciar a API derrubaria as entregas | [09:11] Diego |
-| **Retry indefinido** / **3 tentativas** | Retry indefinido deixaria eventos pendurados para sempre. Com 3 tentativas, a janela seria de ~30 min, insuficiente para manutenções de 2 h | [09:15] Diego, [09:16] Diego |
-| **Exactly-once** | Pouparia o cliente de deduplicar, mas exige coordenação dos dois lados e fica muito mais complexo | [09:25] Diego |
-| **Secret global** | Mais simples de gerir, mas o vazamento de uma secret comprometeria todos os clientes | [09:21] Sofia |
+| **Disparo síncrono** na transação de status | Cliente lento ou fora do ar trava ou desfaz a mudança de status ([09:04] Bruno) | [ADR-001](adrs/ADR-001-outbox-no-mysql.md) |
+| **Fila externa** (Redis) | Infraestrutura nova; "overengineering" para time pequeno ([09:07] Diego) | [ADR-001](adrs/ADR-001-outbox-no-mysql.md) |
+| **Trigger do banco** | MySQL não notifica processo externo ([09:09] Diego) | [ADR-002](adrs/ADR-002-worker-separado-com-polling.md) |
+| **Worker dentro da API** | Reinício da API para as entregas ([09:11] Diego) | [ADR-002](adrs/ADR-002-worker-separado-com-polling.md) |
+| **Retry indefinido** / **3 tentativas** | Evento pendurado para sempre / janela de ~30 min ([09:15] Diego, [09:16] Diego) | [ADR-003](adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md) |
+| **Exactly-once** | Coordenação dos dois lados, "muito mais complexo" ([09:25] Diego) | [ADR-005](adrs/ADR-005-entrega-at-least-once-com-x-event-id.md) |
+| **Secret global** | "Se vaza uma, vaza tudo" ([09:21] Sofia) | [ADR-004](adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md) |
 
 ## 5. Questões em aberto
 
@@ -73,11 +75,17 @@ flowchart LR
 7. **Onde vai o `customer_id`.** A reunião deixou "no body ou no path" ([09:32] Larissa). Propomos body nas escritas e query string na listagem.
 8. **Granularidade da outbox.** Propomos uma entrada por webhook interessado, todas com o mesmo `X-Event-Id`, para que retry, DLQ e histórico sejam por endpoint.
 
+**Identificada no desenho, a levar ao design review ([09:50] Larissa):**
+
+9. **Ordem por pedido com retries.** A garantia de ordem por pedido ([09:12] Diego) supõe que as entregas dão certo de primeira. Com backoff, o evento seguinte do mesmo pedido pode chegar antes do que está em retry. *Opções:* (a) aceitar e orientar o cliente a ordenar por `timestamp` e `to_status`; (b) segurar os eventos posteriores do mesmo par pedido × webhook enquanto houver um anterior pendente. Detalhes nos riscos do [FDD](FDD.md).
+
 ## 6. Impacto e riscos
 
 **Impacto no sistema existente.** A única mudança em código atual é uma chamada a mais dentro da transação de mudança de status, mais o registro do novo módulo e das rotas. Entram também tabelas novas (configuração, outbox, dead letter, histórico de entregas), um novo processo (o worker) com script próprio e uma revisão de segurança de pelo menos 2 dias úteis antes do deploy ([09:46] Sofia).
 
-| Risco | Prob. | Impacto | Mitigação |
+Probabilidade e impacto são estimativas do autor; a reunião não classificou os riscos.
+
+| Risco | Prob. (estimativa do autor) | Impacto (estimativa do autor) | Mitigação |
 | --- | --- | --- | --- |
 | Cliente não deduplica e processa eventos repetidos | Média | Médio | Destacar at-least-once e `X-Event-Id` no portal do desenvolvedor ([09:26] Marcos) |
 | Mudanças de status concorrentes no mesmo pedido: a transação atual não trava a linha do pedido (`src/modules/orders/order.service.ts`), então dois eventos podem ser gerados a partir do mesmo status de origem | Baixa | Médio | O evento herda a atomicidade da transação. Registrar como limitação no FDD e cobrir com teste de concorrência |

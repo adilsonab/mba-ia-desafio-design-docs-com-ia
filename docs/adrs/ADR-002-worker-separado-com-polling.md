@@ -32,6 +32,8 @@ O worker faz **polling em loop a cada 2 segundos**: busca em lote pequeno os eve
 
 Roda **um único worker**. A ordem de entrega é a ordem de criação na outbox, o que garante sequência **por pedido** apenas enquanto houver um só worker. Isso fica documentado como **limitação conhecida** ([09:12] Diego, [09:13] Larissa).
 
+**Ressalva identificada no desenho:** a fala de [09:12] Diego considera o caso em que todas as entregas dão certo na primeira tentativa. Quando uma entrega falha e entra em backoff ([ADR-003](ADR-003-retry-com-backoff-exponencial-e-dlq.md)), o evento seguinte do mesmo pedido pode ser entregue antes dela. A ordem por pedido vale, portanto, **só enquanto não houver falha**. O tema fica como questão em aberto para o design review ([09:50] Larissa); o risco e as opções estão no [FDD](../FDD.md).
+
 ## Prós e Contras das Alternativas
 
 ### Trigger do banco
@@ -42,7 +44,7 @@ Roda **um único worker**. A ordem de entrega é a ordem de criação na outbox,
 ### Worker dentro da API
 - ✅ Um processo a menos para implantar.
 - ❌ Se a API reinicia, o worker para junto ([09:11] Diego).
-- ❌ Carga de entrega concorre com o atendimento HTTP.
+- ❌ Carga de entrega concorre com o atendimento HTTP *(análise do autor)*.
 
 ### Processo separado com polling (escolhida)
 - ✅ Polling de 2 s cumpre com folga o limite de 10 s ([09:09] Diego).
@@ -60,16 +62,16 @@ Roda **um único worker**. A ordem de entrega é a ordem de criação na outbox,
 
 ### Negativas
 - Latência mínima de 2 s no pior caso, aceita explicitamente ([09:10] Larissa).
-- **Sem garantia de ordem global**, e a ordem por pedido vale só com um único worker ([09:13] Larissa).
+- **Sem garantia de ordem global**, e a ordem por pedido vale só com um único worker ([09:13] Larissa) e enquanto não houver retry: um evento em backoff pode ser ultrapassado pelo seguinte do mesmo pedido.
 - Um único worker limita a vazão. Escalar para vários workers (particionando por pedido ou com lock pessimista) foi adiado como "problema do futuro" ([09:13] Diego).
 - Duas conexões ao banco (API e worker) passam a disputar o mesmo MySQL.
 
 ### Trade-off explícito
-Aceita-se **latência de até 2 s e vazão limitada a um worker** em troca de **simplicidade operacional e ordem por pedido** sem coordenação entre processos.
+Aceita-se **latência de até 2 s e vazão limitada a um worker** em troca de **simplicidade operacional e ordem por pedido no caminho sem falhas**, sem coordenação entre processos.
 
 ## Referências
 
 - `src/server.ts`: ponto de entrada atual, modelo para o novo ponto de entrada do worker.
 - `src/config/database.ts`: criação do cliente Prisma, reutilizável pelo worker.
 - `package.json`: scripts atuais, onde entrará o script do worker.
-- Transcrição: [09:08] Larissa, [09:09] Diego, [09:09] Bruno, [09:10] Marcos, [09:10] Larissa, [09:11] Diego, [09:11] Larissa, [09:11] Bruno, [09:12] Diego, [09:13] Diego, [09:13] Larissa, [09:14] Marcos, [09:28] Bruno, [09:30] Bruno.
+- Transcrição: [09:08] Larissa, [09:09] Diego, [09:09] Bruno, [09:10] Marcos, [09:10] Larissa, [09:11] Diego, [09:11] Larissa, [09:11] Bruno, [09:12] Diego, [09:13] Diego, [09:13] Larissa, [09:14] Marcos, [09:28] Bruno, [09:30] Bruno, [09:50] Larissa.

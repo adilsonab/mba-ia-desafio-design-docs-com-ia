@@ -39,7 +39,7 @@ O reprocessamento é **manual**, por um endpoint administrativo que recoloca o e
 ### Retry indefinido
 - ✅ Nunca desiste de entregar.
 - ❌ Evento fica pendurado para sempre se o cliente sumiu ([09:15] Diego).
-- ❌ Fila cresce sem limite e sem sinal claro de falha.
+- ❌ Fila cresce sem limite e sem sinal claro de falha *(análise do autor)*.
 
 ### 3 tentativas
 - ✅ Detecta falha mais rápido ("mais agressivo", [09:16] Bruno).

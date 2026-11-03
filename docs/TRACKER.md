@@ -100,6 +100,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | RFC-CTX-01 | `docs/RFC.md` | Contexto | Clientes B2B fazem polling; risco de churn da Atlas | TRANSCRICAO | [09:00] Marcos |
 | RFC-CTX-02 | `docs/RFC.md` | Contexto | Transação de mudança de status já é pesada | TRANSCRICAO | [09:04] Bruno |
 | RFC-CTX-03 | `docs/RFC.md` | Contexto | Mudança de status em transação única na máquina de estados | CODIGO | `src/modules/orders/order.status.ts` |
+| RFC-CTX-04 | `docs/RFC.md` | Contexto | Prazo: "fim do trimestre" e depois "fim de novembro"; adotado o mais restritivo | TRANSCRICAO | [09:45] Marcos |
 | RFC-PROP-01 | `docs/RFC.md` | Decisão | Evento gravado na outbox na mesma transação | TRANSCRICAO | [09:06] Diego |
 | RFC-PROP-02 | `docs/RFC.md` | Decisão | Worker separado, polling 2 s, timeout 10 s | TRANSCRICAO | [09:09] Diego |
 | RFC-PROP-03 | `docs/RFC.md` | Decisão | 5 reenvios 1m/5m/30m/2h/12h + DLQ + replay ADMIN | TRANSCRICAO | [09:17] Larissa |
@@ -122,6 +123,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | RFC-OPEN-06 | `docs/RFC.md` | Interpretação | "5 tentativas" = 5 reenvios após o envio inicial (~14,6 h) | TRANSCRICAO | [09:17] Diego |
 | RFC-OPEN-07 | `docs/RFC.md` | Interpretação | `customer_id` no body (escrita) e na query (listagem) | TRANSCRICAO | [09:32] Larissa |
 | RFC-OPEN-08 | `docs/RFC.md` | Interpretação | Uma entrada de outbox por webhook, mesmo `X-Event-Id` | TRANSCRICAO | [09:34] Bruno |
+| RFC-OPEN-09 | `docs/RFC.md` | Questão em aberto | Ordem por pedido se perde com retries; levar ao design review | TRANSCRICAO | [09:12] Diego |
 | RFC-IMP-01 | `docs/RFC.md` | Impacto | Revisão de segurança ≥ 2 dias úteis antes do deploy | TRANSCRICAO | [09:46] Sofia |
 | RFC-RISK-01 | `docs/RFC.md` | Risco | Cliente não deduplica | TRANSCRICAO | [09:26] Marcos |
 | RFC-RISK-02 | `docs/RFC.md` | Risco | Mudanças de status concorrentes sem lock da linha | CODIGO | `src/modules/orders/order.service.ts` |
@@ -255,11 +257,13 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | ADR-001-ALT-02 | `docs/adrs/ADR-001-outbox-no-mysql.md` | Alternativa descartada | Redis Streams / Cluster (overengineering) | TRANSCRICAO | [09:07] Diego |
 | ADR-001-CTX-01 | `docs/adrs/ADR-001-outbox-no-mysql.md` | Contexto | Transação de status onde o evento será gravado | CODIGO | `src/modules/orders/order.service.ts` |
 | ADR-001-CONS-01 | `docs/adrs/ADR-001-outbox-no-mysql.md` | Trade-off | Consistência e isolamento de falhas em troca de latência | TRANSCRICAO | [09:06] Diego |
+| ADR-001-CONS-02 | `docs/adrs/ADR-001-outbox-no-mysql.md` | Trade-off | Eventos acumulados podem deixar o worker lento; mitigado com índices e lote | TRANSCRICAO | [09:07] Bruno |
 | ADR-002 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Decisão | Worker separado, polling 2 s | TRANSCRICAO | [09:10] Larissa |
 | ADR-002-ALT-01 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Alternativa descartada | Trigger do banco (MySQL sem NOTIFY/LISTEN) | TRANSCRICAO | [09:09] Diego |
 | ADR-002-ALT-02 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Alternativa descartada | Worker no processo da API | TRANSCRICAO | [09:11] Diego |
 | ADR-002-CONS-01 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Trade-off | Sem ordem global; ordem por pedido só com single-worker | TRANSCRICAO | [09:13] Larissa |
 | ADR-002-CONS-02 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Trade-off | Escala para vários workers adiada | TRANSCRICAO | [09:13] Diego |
+| ADR-002-CONS-03 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Risco | Retry pode inverter a ordem por pedido; questão para o design review | TRANSCRICAO | [09:50] Larissa |
 | ADR-002-CTX-01 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Contexto | Único entry point atual é o servidor HTTP | CODIGO | `src/server.ts` |
 | ADR-003 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Decisão | 5 reenvios, backoff 1m/5m/30m/2h/12h | TRANSCRICAO | [09:17] Larissa |
 | ADR-003-INT-01 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Interpretação | 5 reenvios após o envio inicial (~14,6 h) | TRANSCRICAO | [09:17] Diego |
@@ -272,17 +276,19 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | ADR-004 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Decisão | HMAC-SHA256 sobre o corpo, secret por endpoint, rotação 24 h | TRANSCRICAO | [09:22] Sofia |
 | ADR-004-DEC-02 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Decisão | SHA-256 como algoritmo padrão de mercado | TRANSCRICAO | [09:20] Sofia |
 | ADR-004-ALT-01 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Alternativa descartada | Secret global | TRANSCRICAO | [09:21] Sofia |
-| ADR-004-DEC-03 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Restrição | Somente HTTPS | TRANSCRICAO | [09:23] Sofia |
+| ADR-004-DEC-03 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Requisito Não Funcional | Somente HTTPS (requisito relacionado, não decisão arquitetural) | TRANSCRICAO | [09:23] Sofia |
 | ADR-004-DEC-04 | `docs/adrs/ADR-004-assinatura-hmac-sha256-com-secret-por-endpoint.md` | Decisão | Secret gerada pela plataforma | TRANSCRICAO | [09:31] Marcos |
 | ADR-005 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Decisão | At-least-once com `X-Event-Id` | TRANSCRICAO | [09:26] Larissa |
 | ADR-005-DEC-02 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Decisão | UUID gerado na entrada da outbox | TRANSCRICAO | [09:25] Diego |
 | ADR-005-ALT-01 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Alternativa descartada | Exactly-once | TRANSCRICAO | [09:25] Diego |
+| ADR-005-ALT-02 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Alternativa descartada | Stripe e GitHub como referência de at-least-once | TRANSCRICAO | [09:25] Diego |
 | ADR-005-INT-01 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Interpretação | Mesmo `X-Event-Id` em todas as entregas do evento; distinguidas por `X-Webhook-Id` | TRANSCRICAO | [09:44] Sofia |
 | ADR-005-CONS-01 | `docs/adrs/ADR-005-entrega-at-least-once-com-x-event-id.md` | Trade-off | Responsabilidade de dedup transferida ao cliente | TRANSCRICAO | [09:25] Sofia |
 | ADR-006 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Decisão | Reuso máximo: AppError, Pino, error middleware, módulos, Zod | TRANSCRICAO | [09:30] Larissa |
 | ADR-006-DEC-02 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Decisão | Prefixo `WEBHOOK_` nos códigos de erro | TRANSCRICAO | [09:29] Larissa |
 | ADR-006-DEC-03 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Decisão | Módulo em `src/modules/webhooks` | TRANSCRICAO | [09:27] Bruno |
 | ADR-006-DEC-04 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Decisão | Função recebendo `tx` em vez de injetar repositório | TRANSCRICAO | [09:41] Diego |
+| ADR-006-CONS-01 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Trade-off | Observabilidade só com logs e tabelas, sem biblioteca nova | TRANSCRICAO | [09:29] Bruno |
 | ADR-006-COD-01 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Restrição | Hierarquia `AppError` e classes de erro existentes | CODIGO | `src/shared/errors/http-errors.ts` |
 | ADR-006-COD-02 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Restrição | Error middleware centralizado | CODIGO | `src/middlewares/error.middleware.ts` |
 | ADR-006-COD-03 | `docs/adrs/ADR-006-reuso-dos-padroes-existentes.md` | Restrição | `requireRole` usado numa única rota hoje | CODIGO | `src/modules/users/user.routes.ts` |

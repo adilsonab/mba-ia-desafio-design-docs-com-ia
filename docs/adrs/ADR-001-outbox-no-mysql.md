@@ -41,15 +41,15 @@ A tabela de outbox terá índices por estado do evento e por data de criação, 
 - ❌ Descartado por consenso: "Síncrono está fora de questão" ([09:06] Diego).
 
 ### Fila externa (Redis Streams / Cluster)
-- ✅ Infraestrutura feita para mensageria; escala melhor.
+- ✅ Infraestrutura feita para mensageria; escala melhor *(análise do autor)*.
 - ❌ Exige subir e operar infraestrutura nova ([09:07] Larissa).
 - ❌ "Overengineering" para um time pequeno ([09:07] Diego).
-- ❌ Gravar no banco e publicar na fila são duas operações separadas, e o risco de inconsistência entre elas permanece.
+- ❌ Gravar no banco e publicar na fila são duas operações separadas, e o risco de inconsistência entre elas permanece *(análise do autor)*.
 
 ### Outbox no MySQL (escolhida)
 - ✅ Atomicidade: evento e mudança de status são confirmados ou desfeitos juntos ([09:06] Diego).
 - ✅ Nenhuma infraestrutura nova: mesmo banco, mesma stack.
-- ❌ Volume de eventos passa a pesar no banco transacional.
+- ❌ Eventos acumulados na tabela podem deixar o worker lento ([09:07] Bruno). A mitigação acordada é ler só os pendentes, em lote pequeno, com índices por estado e data de criação ([09:08] Diego).
 - ❌ Exige um processo leitor (worker) e política de limpeza futura.
 
 ## Consequências
@@ -65,11 +65,11 @@ A tabela de outbox terá índices por estado do evento e por data de criação, 
 - A tabela cresce continuamente até que exista arquivamento, adiado para fora desta feature ([09:08] Diego).
 
 ### Trade-off explícito
-Troca-se latência mínima e simplicidade do disparo direto por **consistência garantida e isolamento de falhas**, sem custo de infraestrutura nova. O banco MySQL passa a ser também o "barramento" de eventos, o que é aceitável no volume atual.
+Troca-se latência mínima e simplicidade do disparo direto por **consistência garantida e isolamento de falhas**, sem custo de infraestrutura nova. O banco MySQL passa a ser também o "barramento" de eventos. A reunião não quantificou o volume; a aposta é que índices e leitura em lote bastam ([09:08] Diego), e o arquivamento futuro limita o crescimento da tabela.
 
 ## Referências
 
 - `src/modules/orders/order.service.ts:131-178`: transação de mudança de status onde o evento será registrado.
 - `prisma/schema.prisma:116-131`: histórico de status, gravado na mesma transação.
 - `src/config/database.ts`: cliente Prisma sobre o MySQL existente.
-- Transcrição: [09:03] Larissa, [09:04] Bruno, [09:06] Diego, [09:07] Larissa, [09:07] Diego, [09:08] Diego, [09:08] Larissa, [09:40] Bruno, [09:41] Diego, [09:48] Larissa.
+- Transcrição: [09:03] Larissa, [09:04] Bruno, [09:06] Diego, [09:07] Larissa, [09:07] Diego, [09:07] Bruno, [09:08] Diego, [09:08] Larissa, [09:40] Bruno, [09:41] Diego, [09:48] Larissa.

@@ -15,6 +15,11 @@ nomeado como `ADR-NNN-titulo-em-kebab-case.md`.
 | [ADR-005](ADR-005-entrega-at-least-once-com-x-event-id.md) | Entrega at-least-once com `X-Event-Id` para deduplicação no cliente | Aceito |
 | [ADR-006](ADR-006-reuso-dos-padroes-existentes.md) | Reuso dos padrões existentes (módulos, AppError, Pino, error middleware, Zod, requireRole) | Aceito |
 
+### Convenções
+
+- **Status "Aceito":** as seis decisões foram fechadas explicitamente na reunião técnica, cada uma com a fala de fechamento citada no ADR. Os detalhes de implementação que a reunião não fixou não estão nos ADRs: ficam no [FDD](../FDD.md), marcados com **[D]**, e serão confirmados no design review ([09:50] Larissa).
+- ***(análise do autor)*:** marca prós, contras ou alternativas acrescentados na redação, que não foram ditos na reunião. Tudo o que não tem essa marca cita a fala de origem `[hh:mm] Nome`.
+
 ## Relações
 
 ```mermaid

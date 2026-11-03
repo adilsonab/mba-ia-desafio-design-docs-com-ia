@@ -30,8 +30,10 @@ Toda requisição de webhook é assinada com **HMAC-SHA256 sobre o corpo da requ
 - **Secret única por endpoint** de webhook, nunca global ([09:21] Sofia). A secret é armazenada junto com a configuração do endpoint ([09:21] Bruno, [09:21] Sofia).
 - A secret é **gerada pela plataforma** e devolvida ao cliente na criação do webhook ([09:31] Marcos).
 - **Rotação via API**: o cliente pede uma nova secret, e a antiga **continua válida por 24 h** em paralelo para dar tempo de migrar. Depois disso, é invalidada ([09:21] Sofia).
-- **Somente HTTPS**: URLs `http` são recusadas na validação de entrada. Isso foi tratado como requisito de validação, não como decisão arquitetural ([09:23] Sofia).
-- Um carimbo de tempo do envio acompanha a requisição, para o cliente poder detectar ataques de repetição se quiser ([09:44] Diego).
+
+**Requisitos relacionados (não fazem parte desta decisão):**
+- **Somente HTTPS**: URLs `http` são recusadas na validação de entrada. A própria Sofia disse que isso "nem é decisão arquitetural, é só uma validação no schema Zod" ([09:23] Sofia).
+- **Carimbo de tempo do envio**: acompanha a requisição para o cliente poder detectar ataques de repetição, se quiser ([09:44] Diego). É detalhe do contrato de envio, especificado no [FDD](../FDD.md).
 
 ## Prós e Contras das Alternativas
 
@@ -52,7 +54,6 @@ Toda requisição de webhook é assinada com **HMAC-SHA256 sobre o corpo da requ
 ### Positivas
 - O cliente valida origem e integridade de cada requisição com ferramentas comuns.
 - Um incidente de vazamento, como o já ocorrido ([09:22] Diego), é contido a um endpoint e resolvido pelo próprio cliente via rotação.
-- TLS obrigatório protege o conteúdo em trânsito.
 
 ### Negativas
 - A geração e o armazenamento de secrets viram ponto sensível. Exigem revisão de segurança de pelo menos 2 dias úteis antes do deploy ([09:46] Sofia).
