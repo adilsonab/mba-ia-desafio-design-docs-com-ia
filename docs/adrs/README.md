@@ -18,6 +18,7 @@ nomeado como `ADR-NNN-titulo-em-kebab-case.md`.
 ### Convenções
 
 - **Status "Aceito":** as seis decisões foram fechadas explicitamente na reunião técnica, cada uma com a fala de fechamento citada no ADR. Os detalhes de implementação que a reunião não fixou não estão nos ADRs: ficam no [FDD](../FDD.md), marcados com **[D]**, e serão confirmados no design review ([09:50] Larissa).
+- **Pontos abertos em ADRs aceitos:** a decisão central de cada ADR está fechada, mas dois deles têm desdobramentos a confirmar no design review. O [ADR-002](ADR-002-worker-separado-com-polling.md) tem a ordem por pedido com retries e o cliente lento segurando o worker ([RFC](../RFC.md), questões 9 e 10). O [ADR-003](ADR-003-retry-com-backoff-exponencial-e-dlq.md) tem a contagem de tentativas, com falas conflitantes na reunião ([RFC](../RFC.md), questão 6).
 - ***(análise do autor)*:** marca prós, contras ou alternativas acrescentados na redação, que não foram ditos na reunião. Tudo o que não tem essa marca cita a fala de origem `[hh:mm] Nome`.
 
 ## Relações

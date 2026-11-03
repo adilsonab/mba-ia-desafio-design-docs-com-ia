@@ -47,7 +47,7 @@ Roda **um único worker**. A ordem de entrega é a ordem de criação na outbox,
 - ❌ Carga de entrega concorre com o atendimento HTTP *(análise do autor)*.
 
 ### Processo separado com polling (escolhida)
-- ✅ Polling de 2 s cumpre com folga o limite de 10 s ([09:09] Diego).
+- ✅ Polling de 2 s cumpre com folga o limite de 10 s no caminho normal ([09:09] Diego).
 - ✅ Ciclo de vida independente da API.
 - ✅ Simples: mesma linguagem, mesmo banco, mesmo ORM.
 - ❌ Consultas periódicas ao banco mesmo sem eventos.
@@ -58,11 +58,12 @@ Roda **um único worker**. A ordem de entrega é a ordem de criação na outbox,
 ### Positivas
 - Entregas continuam durante reinícios ou deploys da API.
 - Nenhuma tecnologia nova: o worker reaproveita configuração, logger e padrões do projeto ([ADR-006](ADR-006-reuso-dos-padroes-existentes.md)).
-- Latência previsível: no máximo um ciclo de 2 s até a primeira tentativa.
+- Latência previsível no caminho normal: no máximo um ciclo de 2 s até a primeira tentativa.
 
 ### Negativas
 - Latência mínima de 2 s no pior caso, aceita explicitamente ([09:10] Larissa).
 - **Sem garantia de ordem global**, e a ordem por pedido vale só com um único worker ([09:13] Larissa) e enquanto não houver retry: um evento em backoff pode ser ultrapassado pelo seguinte do mesmo pedido.
+- **Um cliente lento atrasa os demais.** O worker único entrega em sequência, e cada chamada pode levar até 10 s ([09:42] Diego). Um cliente que sempre estoura o timeout pode atrasar a fila inteira em dezenas de segundos: é o "cliente lento trava os outros" de [09:04] Bruno, deslocado da transação para o worker. Ver a questão em aberto 10 do [RFC](../RFC.md).
 - Um único worker limita a vazão. Escalar para vários workers (particionando por pedido ou com lock pessimista) foi adiado como "problema do futuro" ([09:13] Diego).
 - Duas conexões ao banco (API e worker) passam a disputar o mesmo MySQL.
 
@@ -74,4 +75,4 @@ Aceita-se **latência de até 2 s e vazão limitada a um worker** em troca de **
 - `src/server.ts`: ponto de entrada atual, modelo para o novo ponto de entrada do worker.
 - `src/config/database.ts`: criação do cliente Prisma, reutilizável pelo worker.
 - `package.json`: scripts atuais, onde entrará o script do worker.
-- Transcrição: [09:08] Larissa, [09:09] Diego, [09:09] Bruno, [09:10] Marcos, [09:10] Larissa, [09:11] Diego, [09:11] Larissa, [09:11] Bruno, [09:12] Diego, [09:13] Diego, [09:13] Larissa, [09:14] Marcos, [09:28] Bruno, [09:30] Bruno, [09:50] Larissa.
+- Transcrição: [09:08] Larissa, [09:09] Diego, [09:09] Bruno, [09:10] Marcos, [09:10] Larissa, [09:11] Diego, [09:11] Larissa, [09:11] Bruno, [09:12] Diego, [09:13] Diego, [09:13] Larissa, [09:14] Marcos, [09:28] Bruno, [09:30] Bruno, [09:42] Diego, [09:50] Larissa.

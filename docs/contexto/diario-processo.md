@@ -135,3 +135,17 @@ Registro cronológico de prompts, resultados e correções. Fonte para a seção
 - **Cobertura do Tracker, medida pela primeira vez:** o total passava (~86%), mas os **ADRs isolados tinham ~68%**, abaixo do critério, porque as consequências quase não tinham linha. +16 linhas nos ADRs (consequências e a evidência contrária), o que leva os ADRs a ~93%. Amostra de 13 linhas: 12 se sustentam; a que não se sustentava (PRD-OUT-08, "histórico") foi corrigida.
 - **Lição:** informação pode se perder **entre etapas**. A fala contrária estava capturada na classificação e sumiu quando a interpretação virou decisão. Revisar só o documento final não mostra isso; foi preciso voltar à transcrição.
 - Tracker: +19 linhas e 3 corrigidas. Revalidação: **311 linhas, 0 erros (84% TRANSCRICAO, 49 CODIGO)**; critérios de aceite **76/76 OK**.
+
+## 2026-11-03 — Etapa 10, ciclo 5: leitura cruzada de consistência
+
+- **Por que houve um ciclo 5:** o critério combinado era fazê-lo se as correções dos ciclos 3 e 4 tivessem tocado mais de um documento. O ciclo 4 mexeu em quatro de uma vez.
+- **Método:** em vez de ler documento por documento, a pré-revisão procurou os mesmos fatos (janela de ~15 h, contagem de tentativas, latência de 2 s e 10 s, 64 KB, ordem, status, endpoints, e-mail, rotação) nos cinco documentos e comparou o que cada um afirmava. Os números e termos básicos estavam consistentes. Os 8 achados seguiam um único padrão: **correções que chegaram a alguns documentos e não a outros**. Aceitei todos.
+- **O risco não tinha chegado à origem da decisão:**
+  - O "cliente lento segura o worker" estava no FDD, no RFC e no PRD, mas não no ADR-002, que é justamente o que decide pelo worker único sequencial. O ADR-002 ainda dizia "latência previsível: no máximo 2 s". Agora a afirmação vale "no caminho normal", e o cliente lento entrou nas consequências negativas.
+  - O OT-1 do FDD contradizia a §13 do próprio FDD.
+  - No RFC, o tema era só um risco; virou a **questão em aberto 10**, ao lado da 9, porque também depende do design review.
+- **A contagem contestada (ciclo 4) não estava em todo lugar:** o TL;DR do RFC e a meta O-3 do PRD apresentavam "~15 h" como fechado. Ganharam a ressalva com link para a questão 6. O índice dos ADRs agora explica que ADR-002 e ADR-003 continuam "Aceito" na decisão central, mas têm desdobramentos abertos.
+- **Omissões:** a rotação de secret entrou na superfície de API do RFC. PRD, RFC e FDD ganharam "última revisão: 03-11-2026" nos metadados. A assimetria entre os itens fora de escopo do PRD e do FDD foi registrada e mantida: cada documento lista o que importa ao seu público.
+- **Lição:** cada ciclo anterior corrigiu bem o documento que revisava, mas uma correção feita num documento cria uma inconsistência com os outros. Só a busca do mesmo fato em todos os documentos mostra isso; a leitura sequencial não mostra.
+- **Critério de parada:** depois deste ciclo, a busca cruzada não encontrou mais nada que se propague entre documentos. Por isso encerrei os ciclos aqui.
+- Tracker: +3 linhas (RFC-OPEN-10, RFC-PROP-08, ADR-002-CONS-06). Revalidação: **314 linhas, 0 erros (84% TRANSCRICAO, 49 CODIGO)**; critérios de aceite **76/76 OK**.

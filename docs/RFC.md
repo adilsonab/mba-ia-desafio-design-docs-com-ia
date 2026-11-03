@@ -4,13 +4,13 @@
 | --- | --- |
 | **Autor** | Adilson Barbosa (redação a partir da reunião técnica conduzida por Larissa, Tech Lead) |
 | **Status** | Em revisão |
-| **Data** | 02-11-2026 |
+| **Data** | 02-11-2026 (última revisão: 03-11-2026, ciclos 2 a 5; ver [diário](contexto/diario-processo.md)) |
 | **Revisores** | Larissa (Tech Lead), Marcos (Product Manager), Bruno (Eng. Pleno, Pedidos), Diego (Eng. Sênior, Plataforma), Sofia (Eng. de Segurança) |
 | **Documentos relacionados** | [PRD](PRD.md) · [FDD](FDD.md) · [ADRs](adrs/README.md) · [Tracker](TRACKER.md) |
 
 ## 1. Resumo executivo (TL;DR)
 
-Propomos notificar clientes B2B, via **webhooks HTTP de saída**, sempre que o status de um pedido muda. A mudança de status passa a registrar um evento numa **tabela outbox no MySQL existente, na mesma transação**. Um **worker em processo separado** lê essa tabela a cada 2 segundos e entrega os eventos **assinados com HMAC-SHA256**. Falhas são retentadas com **backoff exponencial** (5 reenvios ao longo de ~15 h) e, esgotadas, vão para uma **DLQ** com replay manual por administradores. A garantia é **at-least-once**, com `X-Event-Id` para deduplicação no cliente.
+Propomos notificar clientes B2B, via **webhooks HTTP de saída**, sempre que o status de um pedido muda. A mudança de status passa a registrar um evento numa **tabela outbox no MySQL existente, na mesma transação**. Um **worker em processo separado** lê essa tabela a cada 2 segundos e entrega os eventos **assinados com HMAC-SHA256**. Falhas são retentadas com **backoff exponencial** (5 reenvios ao longo de ~15 h; a contagem ainda será confirmada, ver questão 6) e, esgotadas, vão para uma **DLQ** com replay manual por administradores. A garantia é **at-least-once**, com `X-Event-Id` para deduplicação no cliente.
 
 A proposta não adiciona infraestrutura e segue os padrões atuais do projeto. A estimativa é de **3 sprints**, incluindo a revisão de segurança.
 
@@ -41,7 +41,7 @@ flowchart LR
 
 **3.5 Semântica de entrega.** A garantia é at-least-once. Cada evento leva um UUID estável (`X-Event-Id`) para o cliente deduplicar ([09:26] Larissa). → [ADR-005](adrs/ADR-005-entrega-at-least-once-com-x-event-id.md)
 
-**3.6 Superfície de API.** CRUD de configuração de webhooks, aberto a qualquer usuário autenticado; consulta do histórico de entregas de um webhook; e replay da DLQ, só para ADMIN ([09:31] Marcos, [09:33] Bruno, [09:34] Marcos, [09:36] Larissa, [09:37] Sofia). Contratos, payloads e códigos de erro estão no [FDD](FDD.md).
+**3.6 Superfície de API.** CRUD de configuração de webhooks, aberto a qualquer usuário autenticado; rotação da secret de um webhook ([09:21] Sofia); consulta do histórico de entregas de um webhook; e replay da DLQ, só para ADMIN ([09:31] Marcos, [09:33] Bruno, [09:34] Marcos, [09:36] Larissa, [09:37] Sofia). Contratos, payloads e códigos de erro estão no [FDD](FDD.md).
 
 **3.7 Padrões.** O webhook é implementado como um módulo igual aos outros, reutilizando AppError, códigos `WEBHOOK_*`, o error middleware, o Pino, o Zod e o `requireRole` ([09:30] Larissa). → [ADR-006](adrs/ADR-006-reuso-dos-padroes-existentes.md)
 
@@ -78,6 +78,7 @@ Uma linha por alternativa; prós, contras e falas completas ficam no ADR indicad
 **Identificada no desenho, a levar ao design review ([09:50] Larissa):**
 
 9. **Ordem por pedido com retries.** A garantia de ordem por pedido ([09:12] Diego) supõe que as entregas dão certo de primeira. Com backoff, o evento seguinte do mesmo pedido pode chegar antes do que está em retry. *Opções:* (a) aceitar e orientar o cliente a ordenar por `timestamp` e `to_status`; (b) segurar os eventos posteriores do mesmo par pedido × webhook enquanto houver um anterior pendente. Detalhes nos riscos do [FDD](FDD.md).
+10. **Cliente lento segurando o worker.** O worker único entrega em sequência, com timeout de 10 s ([09:42] Diego). Um cliente que sempre estoura o timeout atrasa os demais, o mesmo problema que motivou descartar o envio síncrono ([09:04] Bruno). *Opções:* (a) processar o lote em paralelo entre pedidos diferentes, mantendo sequencial dentro do mesmo pedido, o que preserva a ordem por pedido; (b) aceitar no volume atual e monitorar a idade do pendente mais antigo. Detalhes nos riscos do [FDD](FDD.md).
 
 ## 6. Impacto e riscos
 
@@ -89,7 +90,7 @@ Probabilidade e impacto são estimativas do autor; a reunião não classificou o
 | --- | --- | --- | --- |
 | Cliente não deduplica e processa eventos repetidos | Média | Médio | Destacar at-least-once e `X-Event-Id` no portal do desenvolvedor ([09:26] Marcos) |
 | Mudanças de status concorrentes no mesmo pedido: a transação atual não trava a linha do pedido (`src/modules/orders/order.service.ts`), então dois eventos podem ser gerados a partir do mesmo status de origem | Baixa | Médio | O evento herda a atomicidade da transação. Registrar como limitação no FDD e cobrir com teste de concorrência |
-| Cliente lento segura o worker: entregas sequenciais com timeout de 10 s fazem um cliente lento atrasar os demais, o problema de [09:04] Bruno deslocado para o worker | Média | Alto | Design review: paralelizar o lote entre pedidos diferentes (preserva a ordem por pedido) ou aceitar e monitorar. Detalhes nos riscos do [FDD](FDD.md) |
+| Cliente lento segura o worker: entregas sequenciais com timeout de 10 s fazem um cliente lento atrasar os demais, o problema de [09:04] Bruno deslocado para o worker | Média | Alto | Questão em aberto 10 |
 | Vazão limitada a um único worker; fila acumula em pico | Baixa | Médio | Lote pequeno e polling de 2 s cumprem < 10 s no volume atual. A escala está na questão em aberto 3 |
 | Replay de DLQ protegido por `requireRole('ADMIN')`, mas o cadastro público hoje aceita o papel ADMIN (`src/modules/auth/auth.schemas.ts`) | Média | Alto | Apontar na revisão de segurança da Sofia como pré-requisito do deploy |
 | Não existe vínculo entre usuário e customer, e o CRUD fica aberto a qualquer autenticado: um usuário pode gerir webhooks de outro customer | Média | Médio | Aceito "por enquanto" ([09:37] Sofia). Questão em aberto 4 |

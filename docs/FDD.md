@@ -4,7 +4,7 @@
 | --- | --- |
 | **Autor** | Adilson Barbosa |
 | **Status** | Pronto para revisão de design (sessão com Bruno e Diego, [09:50] Larissa) |
-| **Data** | 02-11-2026 |
+| **Data** | 02-11-2026 (última revisão: 03-11-2026, ciclos 3 a 5; ver [diário](contexto/diario-processo.md)) |
 | **Documentos relacionados** | [PRD](PRD.md) · [RFC](RFC.md) · [ADRs](adrs/README.md) · [Tracker](TRACKER.md) |
 
 > **Convenção de rastreabilidade.** Cada regra cita a origem: `[hh:mm] Nome` para a transcrição, ou um caminho de arquivo para o código. Detalhes de implementação que a reunião não fixou, mas que são necessários para codar, aparecem marcados com **[D]** (decisão de desenho). Cada um indica a decisão da qual deriva e deve ser confirmado na sessão de revisão de design.
@@ -21,7 +21,7 @@ A feature acrescenta a essa transação a gravação de um evento numa outbox ([
 
 | # | Objetivo | Origem |
 | --- | --- | --- |
-| OT-1 | Primeira tentativa de entrega em até ~2 s após o commit da mudança de status (no máximo um ciclo de polling); bem abaixo de 10 s | [09:02] Marcos, [09:10] Larissa |
+| OT-1 | Primeira tentativa de entrega em até ~2 s após o commit da mudança de status (no máximo um ciclo de polling), em operação normal; bem abaixo de 10 s. Com um cliente lento no lote, isso não vale: ver o risco "cliente lento segura o worker" (§13) | [09:02] Marcos, [09:10] Larissa |
 | OT-2 | Zero divergência entre mudanças de status confirmadas e eventos registrados (atomicidade) | [09:06] Diego, [09:40] Bruno |
 | OT-3 | Nenhuma chamada HTTP dentro da transação de status | [09:04] Bruno |
 | OT-4 | Todo evento termina como entregue ou na DLQ, após até 5 reenvios em ~14,6 h | [09:17] Larissa |
@@ -505,7 +505,7 @@ Probabilidade e impacto são estimativas do autor; a reunião não classificou o
 
 | Risco | Prob. (estimativa do autor) | Impacto (estimativa do autor) | Mitigação |
 | --- | --- | --- | --- |
-| **Cliente lento segura o worker:** as entregas do lote são sequenciais, com até 10 s cada ([09:42] Diego). Um cliente que sempre estoura o timeout, com 10 eventos no lote, atrasa todos os outros clientes em até ~100 s. É o "cliente lento trava os outros" de [09:04] Bruno, deslocado para o worker, e quebra o OT-1 nesse cenário | Média | Alto | Levar ao design review: (a) processar o lote em paralelo **entre pedidos diferentes**, mantendo sequencial dentro do mesmo pedido, o que preserva a ordem por pedido; ou (b) aceitar a limitação no volume atual e monitorar pela idade do pendente mais antigo (§9.2) |
+| **Cliente lento segura o worker:** as entregas do lote são sequenciais, com até 10 s cada ([09:42] Diego). Um cliente que sempre estoura o timeout, com 10 eventos no lote, atrasa todos os outros clientes em até ~100 s. É o "cliente lento trava os outros" de [09:04] Bruno, deslocado para o worker, e quebra o OT-1 nesse cenário | Média | Alto | Questão em aberto 10 do [RFC](RFC.md). Levar ao design review: (a) processar o lote em paralelo **entre pedidos diferentes**, mantendo sequencial dentro do mesmo pedido, o que preserva a ordem por pedido; ou (b) aceitar a limitação no volume atual e monitorar pela idade do pendente mais antigo (§9.2) |
 | **Ordem invertida com retries:** se o evento A de um pedido falha e vai para retry, o evento B do mesmo pedido pode ser entregue antes. A garantia "ordem por `order_id`" ([09:12] Diego) vale só quando as primeiras tentativas dão certo | Média | Médio | Questão em aberto 9 do [RFC](RFC.md). Opções: documentar no contrato que o cliente deve usar `timestamp` e `to_status`, ou segurar eventos posteriores do mesmo par pedido×webhook enquanto houver um anterior pendente |
 | Mudanças de status concorrentes no mesmo pedido: `changeStatus` lê o pedido sem lock (`order.service.ts:132`), então dois eventos podem sair com o mesmo `from_status` | Baixa | Médio | Herdado do código atual. O evento reflete exatamente o que foi commitado. Cobrir com teste de concorrência e reportar ao time de Pedidos |
 | Secret guardada em texto puro, necessário para assinar | Média | Alto | Item obrigatório da revisão da Sofia ([09:46] Sofia); redaction nos logs; secret nunca exposta após a criação |

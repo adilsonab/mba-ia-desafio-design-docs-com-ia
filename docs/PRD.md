@@ -5,7 +5,7 @@
 | **Autor** | Adilson Barbosa |
 | **Product Manager** | Marcos |
 | **Status** | Escopo aprovado na reunião técnica (resumo final em [09:48] Larissa); desenho técnico em revisão antes do início da implementação ([09:50] Larissa) |
-| **Data** | 02-11-2026 |
+| **Data** | 02-11-2026 (última revisão: 03-11-2026, ciclos 4 e 5; ver [diário](contexto/diario-processo.md)) |
 | **Documentos relacionados** | [RFC](RFC.md) · [FDD](FDD.md) · [ADRs](adrs/README.md) · [Tracker](TRACKER.md) |
 
 ## 1. Resumo e contexto
@@ -44,7 +44,7 @@ A feature nasce de um pedido formal de três clientes B2B: Atlas Comercial, MaxD
 | --- | --- | --- | --- | --- |
 | O-1 | Notificar em "tempo real" | Tempo entre a mudança de status e a primeira tentativa de entrega | **p95 < 10 s** (ver o risco "cliente lento" na seção 10) | [09:02] Marcos, [09:10] Larissa |
 | O-2 | Não perder nenhuma notificação | Mudanças de status que deveriam notificar e não geraram evento | **0** | [09:06] Diego, [09:40] Bruno |
-| O-3 | Tolerar indisponibilidade do cliente | Janela de reenvio automático antes da fila de falhas | **~15 h** (5 reenvios) | [09:17] Diego, [09:17] Marcos |
+| O-3 | Tolerar indisponibilidade do cliente | Janela de reenvio automático antes da fila de falhas | **~15 h** (5 reenvios; contagem a confirmar no design review, ver [RFC](RFC.md) questão 6) | [09:17] Diego, [09:17] Marcos |
 | O-4 | Atender os clientes solicitantes no prazo | Clientes solicitantes com webhook em produção | **3 de 3** (Atlas, MaxDistribuição, Nova Cargo) até **fim de novembro** | [09:00] Marcos, [09:45] Marcos |
 | O-5 | Reter a conta em risco | Atlas Comercial ativa após a entrega | **Sem migração para concorrente** | [09:00] Marcos |
 
@@ -140,7 +140,7 @@ Probabilidade e impacto são estimativas do autor; a reunião não classificou o
 
 | Risco | Probabilidade (estimativa do autor) | Impacto (estimativa do autor) | Mitigação |
 | --- | --- | --- | --- |
-| **Um cliente lento atrasa as notificações dos outros**: as entregas saem uma de cada vez, e cada cliente tem até 10 s para responder ([09:42] Diego) | Média | Alto | Decisão no design review: enviar em paralelo para pedidos diferentes, ou aceitar e monitorar o tempo de espera da fila. Detalhes no [FDD](FDD.md) |
+| **Um cliente lento atrasa as notificações dos outros**: as entregas saem uma de cada vez, e cada cliente tem até 10 s para responder ([09:42] Diego) | Média | Alto | Decisão no design review: enviar em paralelo para pedidos diferentes, ou aceitar e monitorar o tempo de espera da fila ([RFC](RFC.md), questão 10) |
 | **Perder a Atlas Comercial** por atraso | Média | Alto | Escopo enxuto (sem e-mail, dashboard e rate limit); 3 sprints com a revisão de segurança já reservada; prazo confirmado com os clientes ([09:46] Larissa, [09:47] Marcos) |
 | **Cliente processar a mesma notificação duas vezes** por não deduplicar | Média | Médio | Destaque no portal do desenvolvedor ([09:26] Marcos); ID do evento estável em todas as repetições |
 | **Vazamento do segredo** de um cliente | Média | Alto | Segredo exclusivo por webhook e troca pela API com 24 h de convivência ([09:21] Sofia); já houve caso real ([09:22] Diego) |

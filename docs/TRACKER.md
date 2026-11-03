@@ -111,6 +111,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | RFC-PROP-05 | `docs/RFC.md` | Decisão | At-least-once com `X-Event-Id` | TRANSCRICAO | [09:26] Larissa |
 | RFC-PROP-06 | `docs/RFC.md` | Requisito Funcional | Superfície de API: CRUD, histórico, replay | TRANSCRICAO | [09:33] Bruno |
 | RFC-PROP-07 | `docs/RFC.md` | Decisão | Módulo igual aos outros, reuso de padrões | TRANSCRICAO | [09:30] Larissa |
+| RFC-PROP-08 | `docs/RFC.md` | Requisito Funcional | Rotação da secret na superfície de API | TRANSCRICAO | [09:21] Sofia |
 | RFC-ALT-01 | `docs/RFC.md` | Alternativa descartada | Disparo síncrono na transação de status | TRANSCRICAO | [09:04] Bruno |
 | RFC-ALT-02 | `docs/RFC.md` | Alternativa descartada | Redis Streams / Redis Cluster | TRANSCRICAO | [09:07] Diego |
 | RFC-ALT-03 | `docs/RFC.md` | Alternativa descartada | Trigger do banco acordando o worker | TRANSCRICAO | [09:09] Diego |
@@ -128,6 +129,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | RFC-OPEN-07 | `docs/RFC.md` | Interpretação | `customer_id` no body (escrita) e na query (listagem) | TRANSCRICAO | [09:32] Larissa |
 | RFC-OPEN-08 | `docs/RFC.md` | Interpretação | Uma entrada de outbox por webhook, mesmo `X-Event-Id` | TRANSCRICAO | [09:34] Bruno |
 | RFC-OPEN-09 | `docs/RFC.md` | Questão em aberto | Ordem por pedido se perde com retries; levar ao design review | TRANSCRICAO | [09:12] Diego |
+| RFC-OPEN-10 | `docs/RFC.md` | Questão em aberto | Cliente lento segurando o worker: paralelizar entre pedidos ou aceitar e monitorar | TRANSCRICAO | [09:42] Diego |
 | RFC-IMP-01 | `docs/RFC.md` | Impacto | Revisão de segurança ≥ 2 dias úteis antes do deploy | TRANSCRICAO | [09:46] Sofia |
 | RFC-RISK-01 | `docs/RFC.md` | Risco | Cliente não deduplica | TRANSCRICAO | [09:26] Marcos |
 | RFC-RISK-02 | `docs/RFC.md` | Risco | Mudanças de status concorrentes sem lock da linha | CODIGO | `src/modules/orders/order.service.ts` |
@@ -280,6 +282,7 @@ Referência cruzada entre cada item registrado nos documentos e sua origem: a tr
 | ADR-002-CONS-03 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Risco | Retry pode inverter a ordem por pedido; questão para o design review | TRANSCRICAO | [09:50] Larissa |
 | ADR-002-CONS-04 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Consequência | Entregas continuam durante reinícios da API | TRANSCRICAO | [09:11] Diego |
 | ADR-002-CONS-05 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Consequência | Latência mínima de 2 s aceita explicitamente | TRANSCRICAO | [09:10] Larissa |
+| ADR-002-CONS-06 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Consequência | Cliente lento atrasa os demais no worker sequencial | TRANSCRICAO | [09:04] Bruno |
 | ADR-002-CTX-01 | `docs/adrs/ADR-002-worker-separado-com-polling.md` | Contexto | Único entry point atual é o servidor HTTP | CODIGO | `src/server.ts` |
 | ADR-003 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Decisão | 5 reenvios, backoff 1m/5m/30m/2h/12h | TRANSCRICAO | [09:17] Larissa |
 | ADR-003-INT-01 | `docs/adrs/ADR-003-retry-com-backoff-exponencial-e-dlq.md` | Interpretação | 5 reenvios após o envio inicial (~14,6 h) | TRANSCRICAO | [09:17] Diego |
