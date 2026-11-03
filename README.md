@@ -33,6 +33,8 @@ Segui a ordem sugerida no enunciado. O princípio foi: **as decisões primeiro, 
 6. **PRD:** consolidação na altura de produto, sem detalhe técnico.
 7. **Tracker:** varredura dos 9 documentos e validação automática.
 8. **README:** este documento, montado a partir do diário de processo.
+9. **Revisão final** contra a checklist de critérios de aceite, com script.
+10. **Iteração:** mais quatro ciclos de revisão crítica, totalizando cinco (ver "Iterações e ajustes"). Cada ciclo começou com uma pré-revisão da IA, e eu decidi item a item o que mudar.
 
 **Como organizei a interação com a IA:**
 - **Um passo por vez.** Revisei cada etapa antes de autorizar a próxima.
@@ -99,30 +101,76 @@ if (m.group(1), m.group(2)) not in spoken:
 # para Fonte = CODIGO: os.path.exists(caminho) ou erro
 ```
 
+### 4. Pré-revisão crítica (ciclos 2 a 5)
+
+O script acima confere se o `[hh:mm] Nome` **existe**, mas não se a fala **sustenta** a frase. Para os ciclos de revisão, passei a pedir uma pré-revisão com estas regras. A IA aponta os problemas e propõe correções; a decisão de cada item é minha.
+
+```text
+Faça uma pré-revisão crítica de <documento(s)>. Não altere nada ainda.
+Para cada afirmação com origem [hh:mm] Nome, abra a fala na TRANSCRICAO.md e diga se ela
+sustenta a frase (ou se a frase atribui ao falante algo que ele não disse).
+Para cada arquivo ou linha de código citado, abra o arquivo e confira.
+Procure também:
+- contradições com os outros documentos do pacote (busque o mesmo fato em todos);
+- argumentos, nomes ou limiares sem fonte e sem a marca [D] ou "análise do autor";
+- comportamento resultante do desenho que contradiga um objetivo declarado;
+- falas que contrariam uma interpretação adotada.
+Saída: lista numerada, do mais grave ao mais leve, com o trecho, a evidência
+e uma proposta de correção. Eu respondo concordo/discordo/outra coisa por item.
+```
+
 ## Iterações e ajustes
 
-Foram **5 iterações principais** de gerar, revisar e corrigir, além de ajustes menores de setup.
+Foram **5 ciclos** de gerar, revisar criticamente e corrigir. Cada ciclo foi um commit separado (`Ciclo 1` a `Ciclo 5`), e o detalhe de cada um está no [diário](docs/contexto/diario-processo.md). Separei os ciclos de revisão dos ajustes que fiz *durante* a geração: só conta como ciclo quando um documento pronto foi revisado e corrigido.
 
-1. **Plugin de análise grande demais para o problema.** O relatório de arquitetura listou **41 componentes**, e o fluxo do plugin manda analisar cada um em profundidade. Agrupei em **6 blocos** que a feature realmente toca: Pedidos, Erros, Auth, Observabilidade, Persistência e Composição. No relatório de dependências, a IA listou dezenas de CVEs com IDs que não consegui verificar. Decidi **não citar nenhum CVE** nos documentos, porque nenhum seria rastreável no Tracker.
+### Ciclos de revisão
 
-2. **Revisão humana da classificação da transcrição.** Comparei as minhas listas (decisões, descartados, adiados) com as da IA. A convergência foi quase total, com divergências apenas de categoria em "dashboard" e "ordering global". A IA, porém, capturou algo que eu não tinha listado: o `customer_id` foi proposto como "implícito do JWT" ([09:31] Marcos) e **revertido** um minuto depois ([09:32] Larissa). Também decidi três ambiguidades: `customer_id` no body, uma linha de outbox por webhook e a contagem de tentativas. Sobre as duas primeiras, a IA apontou consequências que eu não tinha visto: o GET de listagem não tem body, e todas as linhas do mesmo evento precisam compartilhar o `X-Event-Id`.
+**Ciclo 1: classificação da transcrição e geração do pacote.**
+- **Minhas listas contra as da IA.** Comparei as minhas listas de decisões, descartados e adiados com as da IA. A convergência foi quase total. A IA, porém, capturou uma reversão que eu não tinha listado: o `customer_id` foi proposto como "implícito do JWT" ([09:31] Marcos) e revertido um minuto depois ([09:32] Larissa).
+- **Resposta errada minha.** Eu disse "5 tentativas no total". A IA mostrou que, assim, o intervalo de 12 h nunca seria usado e a janela cairia para ~2,6 h, contra o "quase 15 horas" de [09:17] Diego. Escolhi **5 reenvios após o envio inicial**.
+- Com a classificação revisada, gerei ADRs, RFC, FDD, PRD e Tracker.
 
-3. **A minha própria resposta estava errada: "5 tentativas".** Respondi "5 tentativas no total". A IA mostrou que isso contradizia a transcrição: com 5 envios só cabem 4 intervalos, então o 12h nunca seria usado e a janela cairia para ~2,6 h. O Diego disse "quase 15 horas" ([09:17] Diego). Comparamos as duas leituras numa linha do tempo, e escolhi **5 reenvios após o envio inicial**, a única em que todos os números da reunião fecham. A lição: revisão crítica vale nos dois sentidos.
+**Ciclo 2: ADRs e RFC (13 achados).**
+- **Contradições com o FDD:** ADR-002 e RFC prometiam ordem por pedido, mas o FDD mostrava que o retry inverte a ordem. O ADR-006 pedia "observabilidade além de logs", contra o "nada novo" ([09:29] Bruno).
+- **Fala atribuída a quem não a disse:** o ADR-005 atribuía ao Diego que "exactly-once não é praticado pelos provedores". Ele só citou Stripe e GitHub.
+- **Argumentos sem fonte:** decidi não remover nenhum. Todos ficaram marcados como *(análise do autor)*, convenção documentada no índice dos ADRs.
+- **Lição:** o script anti-alucinação aprovava tudo isso. Ele confere se a fala existe, não se ela sustenta a frase. Daí nasceu o prompt 4.
 
-4. **Conflito entre o formato do curso e o enunciado nos ADRs.** O agente `adr-generator` proíbe nomes de classes, tabelas e endpoints no corpo do ADR, mas o desafio exige pelo menos um ADR que cite código. Além disso, o plugin identifica decisões **já implementadas no código**, e aqui elas vêm da reunião. Usei só o formato MADR do plugin. Os caminhos de arquivo foram para a seção Referências, e o ADR-006 (reuso de padrões) cita as classes no corpo, porque elas são o próprio assunto da decisão.
+**Ciclo 3: FDD (13 achados).**
+- **Todas as linhas de código citadas estavam certas. O erro estava no desenho:**
+  - O worker sequencial, com timeout de 10 s, deixa **um cliente lento segurar os outros** por até ~100 s. É o mesmo problema que motivou descartar o envio síncrono ([09:04] Bruno), e a §8 dizia "isolamento entre clientes".
+  - O heartbeat do worker era emitido em `debug`, com `LOG_LEVEL` padrão `info`: o alerta "worker caído" dispararia sempre.
+- **Detalhes inventados sem marca:** 8 dos 10 códigos de erro ganharam **[D]**. As métricas tinham nomes de Prometheus num projeto sem Prometheus e viraram consultas SQL e agregações de log.
+- **Lição:** o texto estava certo frase a frase, mas o *comportamento resultante* contradizia o objetivo. Só simulando o cenário do cliente lento o problema apareceu.
 
-5. **O código derrubou suposições do FDD.** Antes de escrever, pedi à IA para conferir no código cada detalhe a ser citado. Isso mudou o desenho em quatro pontos:
-   - `NotFoundError` fixa o código `NOT_FOUND`, então os 404 do módulo precisam usar `AppError` diretamente para emitir `WEBHOOK_*`.
-   - O `validate` middleware converte todo erro do Zod em `VALIDATION_ERROR`. Isso entra em conflito com "HTTPS validado no Zod" ([09:23] Sofia) mais o código `WEBHOOK_INVALID_URL` ([09:28] Bruno). A solução foi Zod para o formato e o service para o esquema `https`.
-   - `tests/setup.ts` apaga `customers`, então as novas tabelas com FK precisam ser limpas antes.
-   - Ao desenhar o fluxo de retry, apareceu um risco que a reunião não viu: **retries podem inverter a ordem** dos eventos de um mesmo pedido, contrariando a "ordem por `order_id`" ([09:12] Diego). Registrei como risco no FDD.
+**Ciclo 4: PRD e Tracker (12 achados).**
+- **Viés de confirmação.** No resumo final, a Larissa diz "**total 5 tentativas**" ([09:48]), e todos confirmam. A classificação registrava essa fala, mas ela se perdeu até os ADRs. Mantive a leitura do ciclo 1, a única em que os cinco intervalos e as ~15 h fecham. Agora a evidência contrária está registrada em ADR-003, RFC, PRD e FDD, e a contagem vai para o design review.
+- **Cenários com nomes de clientes reais** em situações que a reunião não atribuiu a ninguém. Passaram a ser ilustrativos.
+- **Cobertura do Tracker medida pela primeira vez.** O total passava, mas os ADRs isolados tinham ~68%. Com 16 linhas novas, chegaram a ~93%.
 
-   Detalhes que a reunião não fixou, mas que são necessários para codar, ficaram marcados com **[D]** (decisão de desenho), para não parecerem decisões da reunião.
+**Ciclo 5: leitura cruzada de consistência (8 achados).**
+- Busquei os mesmos fatos (janela, tentativas, latência, ordem, status, endpoints) nos cinco documentos. Os 8 achados tinham um único padrão: correções que chegaram a uns documentos e não a outros.
+- O risco do cliente lento estava em FDD, RFC e PRD, mas **não no ADR-002**, que é justamente a decisão que o causa. Também virou a questão em aberto 10 do RFC.
+- Depois deste ciclo, a busca cruzada não encontrou mais nada que se propagasse, e encerrei os ciclos.
 
-**Outros ajustes:**
-- **No PRD,** evitei métricas inventadas. Ninguém deu meta numérica para a redução do polling, e o documento diz isso em vez de inventar um percentual.
-- **No Tracker,** a validação automática confirmou 278 linhas sem erro: 83% com fonte `TRANSCRICAO` e 46 com fonte `CODIGO`.
-- **No setup,** os comandos `/plugin install ...@devfullcycle` falharam porque o marketplace registrado se chama `fullcycle-claude-marketplace`.
+### Ajustes durante a geração
+
+Estas correções aconteceram enquanto eu produzia os documentos, antes de qualquer revisão:
+
+- **Plugin grande demais para o problema.** O relatório de arquitetura listou 41 componentes para analisar em profundidade. Agrupei em 6 blocos que a feature toca. No relatório de dependências, os CVEs listados tinham IDs que não consegui verificar, então nenhum foi citado.
+- **Formato dos ADRs.** O `adr-generator` proíbe nomes de classes no corpo do ADR, mas o desafio exige um ADR que cite código. Mantive o formato MADR e pus as citações de código na seção Referências. O ADR-006 cita classes no corpo porque elas são o assunto da decisão.
+- **O código derrubou suposições do FDD.**
+  - `NotFoundError` fixa o código `NOT_FOUND`, então os 404 do módulo usam `AppError` diretamente.
+  - O `validate` converte todo erro do Zod em `VALIDATION_ERROR`, então o esquema `https` é validado no service para emitir `WEBHOOK_INVALID_URL`.
+  - Detalhes não fixados na reunião ganharam a marca **[D]**.
+- **No PRD, nenhuma meta inventada.** Ninguém deu número para a redução do polling, e o PRD diz isso.
+- **Setup.** `/plugin install ...@devfullcycle` falhou porque o marketplace se chama `fullcycle-claude-marketplace`.
+
+### Estado final
+
+- **Tracker:** 314 linhas, 0 erros. São 84% com fonte `TRANSCRICAO` e 49 com fonte `CODIGO`. Cobertura medida acima de 80% em cada documento.
+- **Critérios de aceite mensuráveis:** 76/76 OK em [check_acceptance.py](docs/contexto/scripts/check_acceptance.py).
+- **Pontos deixados explicitamente para o design review** ([09:50] Larissa): contagem de tentativas, ordem por pedido com retries e cliente lento segurando o worker (RFC, questões 6, 9 e 10).
 
 ## Como navegar a entrega
 
